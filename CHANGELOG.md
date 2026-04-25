@@ -7,3 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 Release dates use UTC.
 
 ## [Unreleased]
+
+### Added
+
+- Initial release
