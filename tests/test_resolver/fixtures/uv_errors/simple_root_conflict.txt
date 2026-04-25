@@ -1,0 +1,2 @@
+  × No solution found when resolving dependencies:
+  ╰─▶ Because you require numpy>=2.0 and numpy<1.26, we can conclude that your requirements are unsatisfiable.

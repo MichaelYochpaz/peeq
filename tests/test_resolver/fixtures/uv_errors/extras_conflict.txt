@@ -1,0 +1,2 @@
+  × No solution found when resolving dependencies:
+  ╰─▶ Because you require requests[security]>=2.32 and requests<2.0, we can conclude that your requirements are unsatisfiable.

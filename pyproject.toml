@@ -1,0 +1,182 @@
+[project]
+name = "peeq"
+version = "0.1.0"
+description = "Investigate Python package metadata, dependencies, and known vulnerabilities. Built for developers and AI agents."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Michael Yochpaz" },
+]
+keywords = ["python", "packages", "pypi", "inspection", "ai", "dependencies"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Software Distribution",
+    "Typing :: Typed",
+]
+dependencies = [
+    "cyclopts>=4.0,<5",
+    "httpx[http2]>=0.28,<1",
+    "pydantic-settings>=2.0",
+    "rich>=13.0",
+    "platformdirs>=4.0",
+    "packaging>=24.0",
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+uv = ["uv>=0.3"]
+
+[project.scripts]
+peeq = "peeq.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/MichaelYochpaz/peeq"
+Documentation = "https://peeq.michaelyo.dev/"
+Repository = "https://github.com/MichaelYochpaz/peeq"
+Issues = "https://github.com/MichaelYochpaz/peeq/issues"
+Changelog = "https://github.com/MichaelYochpaz/peeq/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "respx>=0.22",
+    "ruff>=0.15",
+    "ty>=0.0.15",
+    "zensical>=0.0.21",
+    "prek>=0.3",
+    "pytest-cov>=6.0",
+    "pytest-timeout>=2.3",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = ["/peeq", "/CHANGELOG.md", "/CONTRIBUTING.md", "/LICENSE", "/README.md"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["peeq"]
+
+# --------------------------------------------------------------------------- #
+# Tool Configuration
+# --------------------------------------------------------------------------- #
+
+# Ruff - Linter & Formatter
+# https://docs.astral.sh/ruff/configuration/
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "F",     # Pyflakes
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "A",     # flake8-builtins
+    "C4",    # flake8-comprehensions
+    "C90",   # mccabe (complexity)
+    "DTZ",   # flake8-datetimez (timezone-aware datetime)
+    "FA",    # flake8-future-annotations
+    "FLY",   # flynt (f-string enforcement)
+    "FURB",  # refurb (modern Python idioms)
+    "ISC",   # flake8-implicit-str-concat
+    "LOG",   # flake8-logging
+    "PERF",  # perflint
+    "PIE",   # flake8-pie
+    "PL",    # pylint subset
+    "PT",    # flake8-pytest-style
+    "PTH",   # flake8-use-pathlib
+    "RET",   # flake8-return
+    "RSE",   # flake8-raise
+    "RUF",   # Ruff-specific rules
+    "S",     # flake8-bandit (security)
+    "SIM",   # flake8-simplify
+    "SLF",   # flake8-self (private member access)
+    "TC",    # flake8-type-checking
+    "T10",   # flake8-debugger
+    "T20",   # flake8-print
+    "TID",   # flake8-tidy-imports
+    "ARG",   # flake8-unused-arguments
+    "G004",  # flake8-logging-format: f-string in logging
+    "G010",  # flake8-logging-format: warn instead of warning
+    "G201",  # flake8-logging-format: exc_info on exception
+    "G202",  # flake8-logging-format: redundant exc_info
+]
+ignore = [
+    "E501",  # line-too-long (formatter handles it)
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # assert is fine in tests
+    "S108",    # hardcoded /tmp/ paths in test fixtures are fine
+    "ARG",     # unused args common in fixtures
+    "PLR2004", # magic values in tests are fine
+    "SLF001",  # private member access in tests for assertions
+]
+"scripts/**/*.py" = [
+    "T20",     # print is the primary output mechanism
+    "S603",    # subprocess calls with variable input are intentional
+    "S607",    # git is called by partial path by design
+]
+"**/__init__.py" = [
+    "F401", # unused imports (re-exports)
+]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "pydantic_settings.BaseSettings",
+]
+exempt-modules = [
+    "typing",
+    "sqlite3",  # Used at runtime for connect(), Row, Error, etc.
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["peeq"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+# ty - Type Checker
+# https://docs.astral.sh/ty/configuration/
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.src]
+include = ["peeq", "tests"]
+
+[tool.ty.terminal]
+output-format = "full"
+
+# pytest
+# https://docs.pytest.org/en/stable/reference/customize.html
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+timeout = 30

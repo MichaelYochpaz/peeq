@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 220" role="img" aria-labelledby="peeqWordmarkTitle peeqWordmarkDesc" preserveAspectRatio="xMidYMid meet">
+  <title id="peeqWordmarkTitle">peeq wordmark</title>
+  <desc id="peeqWordmarkDesc">The word peeq in a typewriter-style wordmark, with the final q rendered as a glowing magnifying glass.</desc>
+  <defs>
+    <radialGradient id="peeq-wordmark-lens-fill" cx="48%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#F6E5A7" stop-opacity="0.94"/>
+      <stop offset="62%" stop-color="#D9BA67" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#C9A84C" stop-opacity="0.3"/>
+    </radialGradient>
+    <radialGradient id="peeq-wordmark-glow-fill" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#D4B35E" stop-opacity="0.62"/>
+      <stop offset="58%" stop-color="#C9A84C" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="peeq-wordmark-soft-glow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <mask id="peeq-wordmark-handle-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="500" height="220">
+      <rect x="0" y="0" width="500" height="220" fill="white"/>
+      <circle cx="335" cy="120" r="41" fill="black"/>
+    </mask>
+  </defs>
+  <style>
+    svg {
+      --stroke: #1c1c1e;
+      --glint: #fff2bf;
+      --rim: #fff8dc;
+      --shadow: #7c6324;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      svg {
+        --stroke: #e8e8ea;
+      }
+    }
+
+    .word-text {
+      fill: var(--stroke);
+    }
+
+    .handle,
+    .lens-outline,
+    .glint,
+    .inner-rim {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .handle,
+    .lens-outline {
+      stroke: var(--stroke);
+    }
+
+    .lens-outline {
+      stroke-width: 6;
+    }
+
+    .handle {
+      stroke-width: 9;
+    }
+
+    .lens-base,
+    .lens-fill,
+    .glow {
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .lens-base {
+      fill: #f0da94;
+      opacity: 0.96;
+    }
+
+    .lens-fill {
+      opacity: 0.92;
+    }
+
+    .glow {
+      opacity: 0.74;
+      animation: peeq-pulse 3.8s ease-in-out infinite;
+    }
+
+    .inner-rim {
+      stroke: var(--rim);
+      stroke-opacity: 0.34;
+      stroke-width: 4;
+    }
+
+    .glint {
+      stroke: var(--glint);
+      stroke-opacity: 0.8;
+      stroke-width: 4;
+    }
+
+    svg:hover .glow {
+      opacity: 1;
+      transform: scale(1.08);
+      animation-play-state: paused;
+    }
+
+    svg:hover .lens-base,
+    svg:hover .lens-fill {
+      opacity: 1;
+    }
+
+    @keyframes peeq-pulse {
+      0%,
+      100% {
+        opacity: 0.7;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.92;
+        transform: scale(1.045);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .glow {
+        animation: none;
+      }
+
+      .lens-base,
+      .lens-fill,
+      .glow {
+        transition: none;
+      }
+    }
+  </style>
+
+  <path class="word-text" aria-label="pee" d="M 34.154297,83.806641 V 96.208008 Q 40.233398,88.832031 47.204102,85.103516 54.174805,81.375 63.658203,81.375 q 10.050781,0 18.561524,4.701172 8.510742,4.701172 13.130859,13.130859 4.701174,8.348629 4.701174,17.588869 0,14.6709 -10.537112,25.12695 -10.456054,10.375 -25.77539,10.375 -18.237305,0 -29.584961,-14.83301 v 41.01368 h 16.535156 q 2.431641,0 3.485352,0.8916 1.053711,0.97265 1.053711,2.51269 0,1.45899 -1.053711,2.43164 -1.053711,0.97266 -3.485352,0.97266 h -32.50293 q -2.43164,0 -3.485351,-0.97266 -1.053711,-0.8916 -1.053711,-2.43164 0,-1.54004 1.053711,-2.51269 1.053711,-0.8916 3.485351,-0.8916 h 9.15918 V 90.696289 h -9.15918 q -2.43164,0 -3.485351,-0.972656 -1.053711,-0.972656 -1.053711,-2.512696 0,-1.458984 1.053711,-2.43164 1.053711,-0.972656 3.485351,-0.972656 z M 93.162109,116.7959 q 0,-11.75293 -8.591797,-20.101564 -8.510742,-8.429688 -20.831054,-8.429688 -12.401367,0 -20.993164,8.429688 -8.591797,8.429684 -8.591797,20.101564 0,11.75293 8.591797,20.18262 8.591797,8.42968 20.993164,8.42968 12.239258,0 20.831054,-8.34863 8.591797,-8.42969 8.591797,-20.26367 z m 95.101561,3.72851 h -69.38281 q 1.7832,13.21192 11.02344,21.31739 9.32129,8.02441 23.01953,8.02441 7.61914,0 15.96777,-2.51269 8.34863,-2.5127 13.61719,-6.64649 1.54004,-1.21582 2.6748,-1.21582 1.29688,0 2.26953,1.05371 0.97266,0.97266 0.97266,2.35059 0,1.37793 -1.29687,2.6748 -3.89063,4.05274 -13.86036,7.61914 -9.88867,3.48535 -20.34472,3.48535 -17.50781,0 -29.26074,-11.42871 -11.67188,-11.50976 -11.67188,-27.80175 0,-14.83301 10.94238,-25.451176 Q 133.95703,81.375 150.16797,81.375 q 16.69726,0 27.47754,10.942383 10.78027,10.861327 10.61816,28.207027 z m -6.88965,-6.88964 q -2.02636,-11.26661 -10.69922,-18.318364 -8.59179,-7.051758 -20.50683,-7.051758 -11.91504,0 -20.50684,6.970704 -8.59179,6.970698 -10.69922,18.399418 z m 98.50586,6.88964 h -69.38281 q 1.7832,13.21192 11.02344,21.31739 9.32129,8.02441 23.01953,8.02441 7.61914,0 15.96777,-2.51269 8.34864,-2.5127 13.61719,-6.64649 1.54004,-1.21582 2.6748,-1.21582 1.29688,0 2.26954,1.05371 0.97265,0.97266 0.97265,2.35059 0,1.37793 -1.29687,2.6748 -3.89063,4.05274 -13.86035,7.61914 -9.88868,3.48535 -20.34473,3.48535 -17.50781,0 -29.26074,-11.42871 -11.67188,-11.50976 -11.67188,-27.80175 0,-14.83301 10.94238,-25.451176 Q 225.57324,81.375 241.78418,81.375 q 16.69727,0 27.47754,10.942383 10.78027,10.861327 10.61816,28.207027 z m -6.88965,-6.88964 q -2.02636,-11.26661 -10.69921,-18.318364 -8.5918,-7.051758 -20.50684,-7.051758 -11.91504,0 -20.50684,6.970704 -8.59179,6.970698 -10.69922,18.399418 z"/>
+
+  <g data-part="magnifier">
+    <circle class="glow" cx="335" cy="120" r="53" fill="url(#peeq-wordmark-glow-fill)" filter="url(#peeq-wordmark-soft-glow)"/>
+    <path class="handle" d="M353 139 L344 160 L358 200" mask="url(#peeq-wordmark-handle-mask)"/>
+    <circle class="lens-base" cx="335" cy="120" r="40"/>
+    <circle class="lens-fill" cx="335" cy="120" r="40" fill="url(#peeq-wordmark-lens-fill)"/>
+    <circle class="lens-outline" cx="335" cy="120" r="40"/>
+    <circle class="inner-rim" cx="335" cy="120" r="35"/>
+    <path class="glint" d="M347 94 C356 98 362 107 364 116"/>
+  </g>
+</svg>

@@ -1,0 +1,2 @@
+  × No solution found when resolving dependencies:
+  ╰─▶ Because nonexistent-package-xyz123 was not found in the package registry and you require nonexistent-package-xyz123==1.0.0, we can conclude that your requirements are unsatisfiable.

@@ -1,0 +1,28 @@
+  × No solution found when resolving dependencies:
+  ╰─▶ Because only the following versions of kfp are available:
+          kfp<=2.5.0
+          kfp==2.6.0
+          kfp==2.7.0
+          kfp==2.8.0
+          kfp==2.9.0
+          kfp==2.10.0
+          kfp==2.10.1
+          kfp==2.11.0
+          kfp==2.12.0
+          kfp==2.12.1
+          kfp==2.12.2
+          kfp==2.13.0
+          kfp==2.14.1
+          kfp==2.14.2
+          kfp==2.14.3
+          kfp==2.14.4
+          kfp==2.14.5
+          kfp==2.14.6
+          kfp==2.15.0
+          kfp==2.15.1
+          kfp==2.15.2
+          kfp>=2.16.0,<3
+      and kfp>=2.5.0,<=2.8.0 depends on kubernetes>=8.0.0,<27, we can conclude that kfp>=2.5.0,<2.9.0 depends on kubernetes>=8.0.0,<27.
+      And because kfp>=2.9.0 depends on kubernetes>=8.0.0,<31 and only kfp<=2.16.0 is available, we can conclude that kfp>=2.5.0 depends on kubernetes>=8.0.0,<31.
+      And because llama-stack-provider-ragas[remote]==0.5.1 depends on kfp>=2.5.0 and llama-stack-provider-lmeval==0.4.2 depends on kubernetes==35.0.0a1, we can conclude that llama-stack-provider-lmeval==0.4.2 and llama-stack-provider-ragas[remote]==0.5.1 are incompatible.
+      And because you require llama-stack-provider-lmeval==0.4.2 and llama-stack-provider-ragas[remote]==0.5.1, we can conclude that your requirements are unsatisfiable.

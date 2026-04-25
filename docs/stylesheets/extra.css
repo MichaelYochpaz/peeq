@@ -1,0 +1,107 @@
+/* peeq brand palette — charcoal + amber */
+
+/* Light scheme — charcoal header, clean page */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #1C1C1E;
+  --md-primary-fg-color--light: #4A4A4C;
+  --md-primary-fg-color--dark: #0D0D0E;
+  --md-primary-bg-color: #FFFFFF;
+  --md-primary-bg-color--light: #FAFAFA;
+  --md-accent-fg-color: #8B7022;
+  --md-accent-fg-color--transparent: rgba(139, 112, 34, 0.1);
+  --md-code-bg-color: #F5F5F0;
+}
+
+/*
+ * Light scheme header — charcoal bar with white text.
+ *
+ * The header and all its children (search button, icons, Ctrl+K badge) derive
+ * colors from --md-default-* CSS variables. By scoping dark-mode values to
+ * .md-header, everything inside automatically renders light-on-dark — no
+ * !important or per-element overrides needed.
+ */
+[data-md-color-scheme="default"] .md-header {
+  --md-default-fg-color: hsla(0, 0%, 100%, 0.87);
+  --md-default-fg-color--light: hsla(0, 0%, 100%, 0.54);
+  --md-default-fg-color--lighter: hsla(0, 0%, 100%, 0.32);
+  --md-default-fg-color--lightest: hsla(0, 0%, 100%, 0.12);
+  --md-default-bg-color: #1C1C1E;
+  --md-default-bg-color--light: #28282A;
+}
+
+/* Dark scheme — full charcoal noir */
+[data-md-color-scheme="slate"] {
+  --md-hue: 240;
+  --md-default-bg-color: #1C1C1E;
+  --md-default-fg-color: hsla(0, 0%, 100%, 0.87);
+  --md-default-fg-color--light: hsla(0, 0%, 100%, 0.54);
+  --md-default-fg-color--lighter: hsla(0, 0%, 100%, 0.32);
+  --md-default-fg-color--lightest: hsla(0, 0%, 100%, 0.12);
+  --md-primary-fg-color: #C9A84C;
+  --md-primary-fg-color--light: #D4B86A;
+  --md-primary-fg-color--dark: #9E8339;
+  --md-primary-bg-color: #1C1C1E;
+  --md-primary-bg-color--light: #28282A;
+  --md-accent-fg-color: #C9A84C;
+  --md-accent-fg-color--transparent: rgba(201, 168, 76, 0.1);
+  --md-typeset-a-color: #C9A84C;
+  --md-code-bg-color: #141416;
+  --md-code-fg-color: hsla(0, 0%, 100%, 0.87);
+  --md-footer-bg-color: #141416;
+  --md-footer-bg-color--dark: #0D0D0E;
+}
+
+/*
+ * Paper grain texture — procedural noise via feTurbulence, applied as a
+ * fixed overlay. stitchTiles="stitch" makes the 256px tile seamlessly
+ * repeatable. pointer-events: none keeps the overlay non-interactive.
+ */
+[data-md-color-scheme="slate"]::before,
+[data-md-color-scheme="default"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+}
+
+[data-md-color-scheme="slate"]::before {
+  opacity: 0.035;
+}
+
+[data-md-color-scheme="default"]::before {
+  opacity: 0.015;
+}
+
+/* Header logo — wordmark SVG replaces text title */
+.md-header__button.md-logo img {
+  height: 2.2rem;
+  width: auto;
+}
+
+/* Header repo link — slightly larger to balance the wordmark logo */
+.md-source__repository {
+  font-size: 0.75rem;
+}
+
+/* Hide text title in header — the wordmark SVG already spells "peeq" */
+.md-header__topic {
+  display: none;
+}
+
+/* Hide the logo icon in sidebar — keep styled text there instead */
+.md-nav__button.md-logo {
+  display: none;
+}
+
+/* Sidebar title — match wordmark typewriter font */
+.md-nav--primary > .md-nav__title .md-ellipsis {
+  font-family: "Courier New", Courier, "Nimbus Mono PS", monospace;
+  font-size: 1.1rem;
+  font-weight: 400;
+  font-variant-ligatures: none;
+  letter-spacing: -0.05em;
+  text-rendering: geometricPrecision;
+}

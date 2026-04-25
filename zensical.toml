@@ -1,0 +1,73 @@
+[project]
+site_name = "peeq"
+site_url = "https://peeq.michaelyo.dev/"
+repo_url = "https://github.com/MichaelYochpaz/peeq"
+repo_name = "MichaelYochpaz/peeq"
+site_description = "Investigate Python package metadata, dependencies, and known vulnerabilities. Built for developers and AI agents."
+site_author = "Michael Yochpaz"
+copyright = "Copyright &copy; 2026 Michael Yochpaz"
+extra_css = ["stylesheets/extra.css"]
+nav = [
+    "index.md",
+    "installation.md",
+    "quickstart.md",
+    { "Commands" = [
+        "commands/index.md",
+        "commands/info.md",
+        "commands/versions.md",
+        "commands/deps.md",
+        "commands/artifacts.md",
+        "commands/cat.md",
+        "commands/ls.md",
+        "commands/download.md",
+        "commands/vulns.md",
+        "commands/resolve.md",
+        "commands/conflicts.md",
+        "commands/why.md",
+        "commands/cache.md",
+    ]},
+    "output-formats.md",
+    "configuration.md",
+    "private-registries.md",
+    { "AI Agents" = [
+        "ai-agents/index.md",
+        "ai-agents/skill.md",
+    ]},
+]
+
+[project.theme]
+logo = "images/logo-header.svg"
+language = "en"
+features = [
+    "content.code.annotate",
+    "content.code.copy",
+    "content.code.select",
+    "content.tabs.link",
+    "navigation.footer",
+    "navigation.indexes",
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.path",
+    "navigation.sections",
+    "navigation.top",
+    "navigation.tracking",
+    "search.highlight",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/MichaelYochpaz/peeq"
