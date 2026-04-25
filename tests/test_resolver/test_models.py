@@ -37,7 +37,7 @@ class TestTargetEnvironment:
     def test_frozen(self) -> None:
         env = TargetEnvironment(python_version="3.12")
         with pytest.raises(ValidationError):
-            env.python_version = "3.13"  # type: ignore[misc]
+            env.python_version = "3.13"  # ty: ignore[invalid-assignment]
 
     def test_to_marker_env_empty(self) -> None:
         env = TargetEnvironment()
@@ -141,10 +141,10 @@ class TestResolvedDependency:
     def test_frozen(self) -> None:
         dep = ResolvedDependency(name="click", version=Version("8.0.0"))
         with pytest.raises(ValidationError):
-            dep.name = "other"  # type: ignore[misc]
+            dep.name = "other"  # ty: ignore[invalid-assignment]
 
     def test_version_from_string(self) -> None:
-        dep = ResolvedDependency(name="click", version="8.0.0")  # type: ignore[arg-type]
+        dep = ResolvedDependency(name="click", version="8.0.0")  # ty: ignore[invalid-argument-type]
         assert dep.version == Version("8.0.0")
 
 
@@ -178,7 +178,7 @@ class TestSolverResult:
     def test_frozen(self) -> None:
         result = SolverResult(resolved=[], solver_id="uv")
         with pytest.raises(ValidationError):
-            result.solver_id = "other"  # type: ignore[misc]
+            result.solver_id = "other"  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +203,7 @@ class TestConflictRequirement:
     def test_frozen(self) -> None:
         req = ConflictRequirement(package="pkg", version="1.0", dependency="dep>=1.0")
         with pytest.raises(ValidationError):
-            req.package = "other"  # type: ignore[misc]
+            req.package = "other"  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ class TestConflictInfo:
     def test_frozen(self) -> None:
         conflict = ConflictInfo(package="numpy")
         with pytest.raises(ValidationError):
-            conflict.package = "other"  # type: ignore[misc]
+            conflict.package = "other"  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +273,7 @@ class TestDependencyEdge:
     def test_frozen(self) -> None:
         edge = DependencyEdge(name="click")
         with pytest.raises(ValidationError):
-            edge.name = "other"  # type: ignore[misc]
+            edge.name = "other"  # ty: ignore[invalid-assignment]
 
     def test_json_roundtrip(self) -> None:
         edge = DependencyEdge(

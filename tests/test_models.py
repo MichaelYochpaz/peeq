@@ -34,12 +34,12 @@ from peeq.models import (
 class TestHashDigest:
     def test_invalid_source_rejected(self):
         with pytest.raises(ValidationError):
-            HashDigest(sha256="abc", source="unknown")  # type: ignore[arg-type]
+            HashDigest(sha256="abc", source="unknown")  # ty: ignore[invalid-argument-type]
 
     def test_frozen(self):
         h = HashDigest(sha256="abc", source="registry")
         with pytest.raises(ValidationError):
-            h.sha256 = "xyz"  # type: ignore[misc]
+            h.sha256 = "xyz"  # ty: ignore[invalid-assignment]
 
     def test_roundtrip_json(self):
         h = HashDigest(sha256="abc123", source="registry")
@@ -56,7 +56,7 @@ class TestHashDigest:
 
 class TestPkgVersion:
     def test_from_string(self):
-        info = PackageInfo(name="pkg", latest_version="1.2.3", version_count=1)  # type: ignore[arg-type]
+        info = PackageInfo(name="pkg", latest_version="1.2.3", version_count=1)  # ty: ignore[invalid-argument-type]
         assert isinstance(info.latest_version, Version)
         assert str(info.latest_version) == "1.2.3"
 
@@ -66,7 +66,7 @@ class TestPkgVersion:
         assert info.latest_version is v
 
     def test_serialization(self):
-        info = PackageInfo(name="pkg", latest_version="1.0.0", version_count=5)  # type: ignore[arg-type]
+        info = PackageInfo(name="pkg", latest_version="1.0.0", version_count=5)  # ty: ignore[invalid-argument-type]
         data = json.loads(info.model_dump_json())
         assert data["latest_version"] == "1.0.0"
 
@@ -78,12 +78,12 @@ class TestPkgVersion:
 
     def test_normalization(self):
         """PEP 440 normalizes versions (e.g., leading zeros stripped)."""
-        info = PackageInfo(name="pkg", latest_version="01.02.03", version_count=1)  # type: ignore[arg-type]
+        info = PackageInfo(name="pkg", latest_version="01.02.03", version_count=1)  # ty: ignore[invalid-argument-type]
         assert str(info.latest_version) == "1.2.3"
 
     def test_invalid_version_rejected(self):
         with pytest.raises(ValidationError):
-            PackageInfo(name="pkg", latest_version="not-a-version!", version_count=1)  # type: ignore[arg-type]
+            PackageInfo(name="pkg", latest_version="not-a-version!", version_count=1)  # ty: ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +139,7 @@ class TestDependency:
     def test_frozen(self):
         dep = Dependency.from_requirement_string("numpy>=1.21")
         with pytest.raises(ValidationError):
-            dep.name = "other"  # type: ignore[misc]
+            dep.name = "other"  # ty: ignore[invalid-assignment]
 
     def test_roundtrip_json(self):
         dep = Dependency.from_requirement_string("httpx[http2]>=0.28")
@@ -169,9 +169,9 @@ class TestDependency:
 
 class TestPackageInfo:
     def test_frozen(self):
-        info = PackageInfo(name="pkg", latest_version="1.0.0", version_count=1)  # type: ignore[arg-type]
+        info = PackageInfo(name="pkg", latest_version="1.0.0", version_count=1)  # ty: ignore[invalid-argument-type]
         with pytest.raises(ValidationError):
-            info.name = "other"  # type: ignore[misc]
+            info.name = "other"  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -181,12 +181,12 @@ class TestPackageInfo:
 
 class TestVersionInfo:
     def test_frozen(self):
-        vi = VersionInfo(version="1.0.0")  # type: ignore[arg-type]
+        vi = VersionInfo(version="1.0.0")  # ty: ignore[invalid-argument-type]
         with pytest.raises(ValidationError):
-            vi.version = "2.0.0"  # type: ignore[misc]
+            vi.version = "2.0.0"  # ty: ignore[invalid-assignment]
 
     def test_json_roundtrip(self):
-        vi = VersionInfo(version="1.2.3", yanked=True, yanked_reason="bad release")  # type: ignore[arg-type]
+        vi = VersionInfo(version="1.2.3", yanked=True, yanked_reason="bad release")  # ty: ignore[invalid-argument-type]
         data = json.loads(vi.model_dump_json())
         assert data["version"] == "1.2.3"
         assert data["yanked"] is True
@@ -210,7 +210,7 @@ class TestFileInfo:
             dist_type=DistType.SDIST,
         )
         with pytest.raises(ValidationError):
-            f.filename = "other"  # type: ignore[misc]
+            f.filename = "other"  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ class TestDownloadResult:
             size_bytes=100,
         )
         with pytest.raises(ValidationError):
-            r.size_bytes = 200  # type: ignore[misc]
+            r.size_bytes = 200  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +243,7 @@ class TestCacheStats:
             total_size_bytes=0,
         )
         with pytest.raises(ValidationError):
-            s.package_count = 5  # type: ignore[misc]
+            s.package_count = 5  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +347,7 @@ class TestCvssSeverity:
         """CvssSeverity is immutable."""
         s = CvssSeverity(type="CVSS_V3", score="x")
         with pytest.raises(ValidationError):
-            s.type = "CVSS_V4"  # type: ignore[misc]
+            s.type = "CVSS_V4"  # ty: ignore[invalid-assignment]
 
     def test_json_roundtrip(self):
         """Serialize to JSON and back."""
@@ -366,7 +366,7 @@ class TestVulnerabilityReference:
         """VulnerabilityReference is immutable."""
         ref = VulnerabilityReference(type="FIX", url="https://example.com")
         with pytest.raises(ValidationError):
-            ref.url = "other"  # type: ignore[misc]
+            ref.url = "other"  # ty: ignore[invalid-assignment]
 
 
 class TestVulnerabilityInfo:
@@ -376,7 +376,7 @@ class TestVulnerabilityInfo:
         """VulnerabilityInfo is immutable."""
         v = VulnerabilityInfo(id="GHSA-test")
         with pytest.raises(ValidationError):
-            v.id = "other"  # type: ignore[misc]
+            v.id = "other"  # ty: ignore[invalid-assignment]
 
     def test_json_roundtrip(self):
         """Serialize to JSON and back."""
@@ -399,4 +399,4 @@ class TestVulnerabilityReport:
         """VulnerabilityReport is immutable."""
         r = VulnerabilityReport(package="pkg", version="1.0.0")
         with pytest.raises(ValidationError):
-            r.package = "other"  # type: ignore[misc]
+            r.package = "other"  # ty: ignore[invalid-assignment]

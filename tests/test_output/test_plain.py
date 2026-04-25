@@ -124,7 +124,7 @@ from tests.test_output._helpers import (
 def test_no_xml_tags(render_fn: object, forbidden: list[str]) -> None:
     """Plain output contains no XML/agent-format tags or Markdown tables."""
     r, s = _renderer()
-    render_fn(r)  # type: ignore[operator]
+    render_fn(r)  # ty: ignore[call-non-callable]
     out = s.getvalue()
     for pattern in forbidden:
         assert pattern not in out, f"Found {pattern!r} in plain output"

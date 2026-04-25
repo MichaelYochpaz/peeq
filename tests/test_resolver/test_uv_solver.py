@@ -13,7 +13,7 @@ from packaging.specifiers import SpecifierSet
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib  # type: ignore[no-redef]
+    import tomli as tomllib  # ty: ignore[unresolved-import]
 
 from peeq.resolver.base import ResolutionImpossible, UvNotFoundError
 from peeq.resolver.models import TargetEnvironment

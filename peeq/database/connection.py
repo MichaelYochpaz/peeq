@@ -153,4 +153,4 @@ def _connect_with_retry(
 
     # last_error is guaranteed to be set if we reach here because
     # max_retries >= 1 and the loop only exits after catching an error.
-    raise last_error  # type: ignore[misc]
+    raise last_error  # ty: ignore[invalid-raise]

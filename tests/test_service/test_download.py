@@ -262,7 +262,7 @@ class TestEnsureArtifactCached:
         result = await service._ensure_artifact_cached("pkg", "1.0.0")
 
         assert result == Path("/cache/pkg.tar.gz")
-        service._backend.files.assert_not_awaited()  # type: ignore[union-attr]
+        service._backend.files.assert_not_awaited()  # ty: ignore[unresolved-attribute]
 
     async def test_sdist_preferred(self) -> None:
         sdist_bytes = _make_sdist_bytes()

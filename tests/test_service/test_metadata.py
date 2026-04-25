@@ -121,7 +121,7 @@ class TestGetMetadataCacheHit:
 
         assert result is meta
         # Backend should not be called
-        service._backend.files.assert_not_awaited()  # type: ignore[union-attr]
+        service._backend.files.assert_not_awaited()  # ty: ignore[unresolved-attribute]
 
 
 # ===================================================================

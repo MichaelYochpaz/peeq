@@ -179,7 +179,7 @@ class UvSolver(DependencyResolver):
                     proc.communicate(),
                     timeout=_UV_TIMEOUT,
                 )
-            except TimeoutError as exc:
+            except (TimeoutError, asyncio.TimeoutError) as exc:
                 msg = f"uv subprocess timed out after {_UV_TIMEOUT}s"
                 raise ResolutionImpossible(msg) from exc
             except FileNotFoundError as exc:

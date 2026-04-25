@@ -167,8 +167,8 @@ class TestWhyDependencies:
             ]
         )
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("target-pkg>=2.0")]),
         )
 
@@ -199,8 +199,8 @@ class TestWhyDependencies:
             ]
         )
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("target-pkg>=1.0")]),
         )
 
@@ -220,7 +220,7 @@ class TestWhyDependencies:
             ]
         )
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
 
         why_result = await service.why_dependencies(
             "nonexistent",
@@ -240,7 +240,7 @@ class TestWhyDependencies:
             ]
         )
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
 
         why_result = await service.why_dependencies(
             "target-pkg",
@@ -259,8 +259,8 @@ class TestWhyDependencies:
         result = _solver_result(nodes)
 
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("target-pkg>=1.0")]),
         )
 
@@ -292,8 +292,8 @@ class TestWhyDependencies:
             return None
 
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             side_effect=_meta_side_effect,
         )
 
@@ -323,8 +323,8 @@ class TestWhyDependencies:
         )
 
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("target-pkg>=2.0,<4")]),
         )
 
@@ -345,7 +345,7 @@ class TestWhyDependencies:
         assert hops[2].requirement is None
 
         # Only middle-pkg metadata was fetched (not root-pkg)
-        service.get_metadata.assert_called_once_with("middle-pkg", "2.0.0")  # type: ignore[union-attr]
+        service.get_metadata.assert_called_once_with("middle-pkg", "2.0.0")  # ty: ignore[unresolved-attribute]
 
     async def test_metadata_fetch_failure_graceful(self) -> None:
         """Metadata fetch failure does not crash — requirement stays None."""
@@ -356,8 +356,8 @@ class TestWhyDependencies:
             ]
         )
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             side_effect=RuntimeError("network error"),
         )
 
@@ -379,8 +379,8 @@ class TestWhyDependencies:
             ]
         )
         service = _make_service()
-        service.resolve_dependencies = AsyncMock(return_value=result)  # type: ignore[method-assign]
-        service.get_metadata = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        service.resolve_dependencies = AsyncMock(return_value=result)  # ty: ignore[invalid-assignment]
+        service.get_metadata = AsyncMock(return_value=None)  # ty: ignore[invalid-assignment]
 
         await service.why_dependencies(
             "target-pkg",
@@ -388,5 +388,5 @@ class TestWhyDependencies:
             pre=True,
         )
 
-        call_kwargs = service.resolve_dependencies.call_args  # type: ignore[union-attr]
+        call_kwargs = service.resolve_dependencies.call_args  # ty: ignore[unresolved-attribute]
         assert call_kwargs[1]["include_prereleases"] is True

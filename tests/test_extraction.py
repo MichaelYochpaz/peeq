@@ -123,7 +123,7 @@ class TestExtractionLimits:
     def test_frozen(self) -> None:
         limits = ExtractionLimits()
         with pytest.raises(AttributeError):
-            limits.max_total_bytes = 999  # type: ignore[misc]
+            limits.max_total_bytes = 999  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -629,7 +629,7 @@ class TestArchiveMember:
     def test_frozen(self) -> None:
         m = ArchiveMember(path="test.py", size=42, is_dir=False)
         with pytest.raises(AttributeError):
-            m.path = "other.py"  # type: ignore[misc]
+            m.path = "other.py"  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------

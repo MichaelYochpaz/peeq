@@ -52,7 +52,7 @@ def _pkg_info(**kw: object) -> PackageInfo:
         "registry": "pypi.org",
     }
     defaults.update(kw)
-    return PackageInfo(**defaults)  # type: ignore[arg-type]
+    return PackageInfo(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 def _info_report(**kw: object) -> InfoReport:
@@ -96,7 +96,7 @@ def _file_info(**kw: object) -> FileInfo:
         "requires_python": ">=3.7",
     }
     defaults.update(kw)
-    return FileInfo(**defaults)  # type: ignore[arg-type]
+    return FileInfo(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 def _cache_stats(**kw: object) -> CacheStats:
@@ -110,7 +110,7 @@ def _cache_stats(**kw: object) -> CacheStats:
         "metadata_only_count": 3,
     }
     defaults.update(kw)
-    return CacheStats(**defaults)  # type: ignore[arg-type]
+    return CacheStats(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 def _solver_result(**kw: object) -> SolverResult:
@@ -123,7 +123,7 @@ def _solver_result(**kw: object) -> SolverResult:
         "solver_id": "uv",
     }
     defaults.update(kw)
-    return SolverResult(**defaults)  # type: ignore[arg-type]
+    return SolverResult(**defaults)
 
 
 def _conflict(**kw: object) -> ConflictInfo:
@@ -145,7 +145,7 @@ def _conflict(**kw: object) -> ConflictInfo:
         "message": "No compatible version found.",
     }
     defaults.update(kw)
-    return ConflictInfo(**defaults)  # type: ignore[arg-type]
+    return ConflictInfo(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 def _vuln(
@@ -188,14 +188,14 @@ def _dep_change(**kw: object) -> DepChange:
         "new_specifier": ">=2.0",
     }
     defaults.update(kw)
-    return DepChange(**defaults)  # type: ignore[arg-type]
+    return DepChange(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 def _deps_diff(**kw: object) -> DepsDiff:
     """Create a `DepsDiff` with sensible defaults."""
     defaults: dict[str, object] = {}
     defaults.update(kw)
-    return DepsDiff(**defaults)  # type: ignore[arg-type]
+    return DepsDiff(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------

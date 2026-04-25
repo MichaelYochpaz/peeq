@@ -96,7 +96,7 @@ class TestEnrichConflicts:
             return _metadata(deps=[_dep("requests>=2.0")])
 
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             side_effect=_side_effect,
         )
 
@@ -114,7 +114,7 @@ class TestEnrichConflicts:
         """No supplementary constraints found returns unchanged."""
         service = _make_service()
         # Metadata has no deps on the conflicting package
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("requests>=2.0")]),
         )
 
@@ -127,7 +127,7 @@ class TestEnrichConflicts:
     async def test_get_metadata_returns_none(self) -> None:
         """`get_metadata` returning None is handled gracefully."""
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=None,
         )
 
@@ -140,7 +140,7 @@ class TestEnrichConflicts:
     async def test_get_metadata_raises_exception(self) -> None:
         """`get_metadata` raising an exception is silently skipped."""
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             side_effect=RuntimeError("network error"),
         )
 
@@ -164,7 +164,7 @@ class TestEnrichConflicts:
             ],
         )
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("numpy>=1.20")]),
         )
 
@@ -172,8 +172,8 @@ class TestEnrichConflicts:
 
         assert len(enriched) == 1
         # pkg-a has exact version so it's fetched; pkg-b is range and skipped
-        assert service.get_metadata.call_count == 1  # type: ignore[union-attr]
-        call_args = service.get_metadata.call_args  # type: ignore[union-attr]
+        assert service.get_metadata.call_count == 1  # ty: ignore[unresolved-attribute]
+        call_args = service.get_metadata.call_args  # ty: ignore[unresolved-attribute]
         assert call_args[0] == ("pkg-a", "1.0.0")
 
     async def test_extras_stripped_for_metadata_lookup(self) -> None:
@@ -190,14 +190,14 @@ class TestEnrichConflicts:
             ],
         )
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("kubernetes>=30.0.0")]),
         )
 
         await service.enrich_conflicts([conflict])
 
         # get_metadata called with bare name (no extras) for both kfp and ragas
-        calls = service.get_metadata.call_args_list  # type: ignore[union-attr]
+        calls = service.get_metadata.call_args_list  # ty: ignore[unresolved-attribute]
         call_names = {c[0][0] for c in calls}
         assert "ragas" in call_names
         # Extras are not part of the name in metadata calls
@@ -217,7 +217,7 @@ class TestEnrichConflicts:
         )
         service = _make_service()
         # Return the SAME constraint that's already in requirements
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[_dep("kubernetes>=8.0.0,<31")]),
         )
 
@@ -245,7 +245,7 @@ class TestEnrichConflicts:
             ],
         )
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=[]),
         )
 
@@ -254,12 +254,12 @@ class TestEnrichConflicts:
         assert len(enriched) == 1
         assert enriched[0].additional_requirements == []
         # No exact version to fetch for parent
-        service.get_metadata.assert_not_called()  # type: ignore[union-attr]
+        service.get_metadata.assert_not_called()  # ty: ignore[unresolved-attribute]
 
     async def test_metadata_with_none_dependencies(self) -> None:
         """Metadata with `dependencies=None` is handled gracefully."""
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             return_value=_metadata(deps=None),
         )
 
@@ -278,7 +278,7 @@ class TestEnrichConflicts:
             return _metadata(deps=[_dep("requests>=2.0")])
 
         service = _make_service()
-        service.get_metadata = AsyncMock(  # type: ignore[method-assign]
+        service.get_metadata = AsyncMock(  # ty: ignore[invalid-assignment]
             side_effect=_side_effect,
         )
 
