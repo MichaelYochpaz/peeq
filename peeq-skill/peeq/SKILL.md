@@ -1,25 +1,18 @@
 ---
 name: peeq
 description: >-
-  peeq is a CLI tool for investigating Python packages from PyPI and
-  private package indexes. Use when researching or auditing a Python
-  package. Examples: checking a package's license or compliance,
-  inspecting package contents or dependencies, checking for known
-  vulnerabilities, resolving or debugging dependency conflicts,
-  verifying version compatibility. Supports downloading package
-  archives (sdist / wheel) or reading specific files from within them
-  (pyproject.toml, LICENSE, etc.).
+  Investigate Python packages from PyPI and private package indexes
+  without installing them. Use when researching any aspect of a
+  published Python package — reading source code and metadata from
+  sdist and wheel archives, browsing module structure and public API,
+  checking dependencies and resolving conflicts, viewing versions, or
+  checking for known vulnerabilities.
 compatibility: "Requires uv."
 ---
 
 # peeq
 
-peeq is a CLI for inspecting Python packages from PyPI and private
-package indexes. It reads metadata, dependencies, versions, files,
-and known vulnerabilities without installing packages or running
-their code.
-
-## Command Reference
+peeq is a CLI tool for researching Python packages without installing them.
 
 **Run `uvx peeq skill show` to load the full command reference, output formats, and workflows.**
 
