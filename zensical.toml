@@ -68,6 +68,8 @@ accent = "custom"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to light mode"
 
+[project.markdown_extensions.admonition]
+
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
 link = "https://github.com/MichaelYochpaz/peeq"

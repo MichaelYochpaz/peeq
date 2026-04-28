@@ -270,6 +270,8 @@ def launcher(
         bool,
         Parameter(
             name="--no-cache",
+            negative="",
+            show_default=False,
             help="Bypass cache entirely (don't read or write).",
         ),
     ] = False,
@@ -291,6 +293,8 @@ def launcher(
         bool,
         Parameter(
             name=["--verbose", "-v"],
+            negative="",
+            show_default=False,
             help="Enable verbose logging.",
         ),
     ] = False,
@@ -934,6 +938,8 @@ async def vulns(
 
     Queries the OSV API (https://osv.dev) for known security vulnerabilities
     affecting the specified package version.
+
+    Vulnerability results are always fetched live, not cached.
     """
     from peeq.integrations.osv import OSVError  # noqa: PLC0415
 

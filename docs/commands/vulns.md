@@ -36,6 +36,12 @@ Each vulnerability in the report includes:
 
 When vulnerabilities are found, peeq shows a recommendation with the minimum version that fixes all reported issues.
 
+!!! info "Caching"
+
+    Vulnerability data is never cached. peeq always queries the OSV API live to ensure results reflect the latest advisories.  
+
+    The global `--no-cache` flag has no effect on the vulnerability query itself; it only affects version resolution when `--version` is not specified.
+
 No authentication or API keys are required.
 The OSV API is free and has no rate limits.
 
