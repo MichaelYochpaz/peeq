@@ -251,6 +251,7 @@ class TestRenderVersions:
         assert '<versions package="requests"' in out
         assert 'showing="2"' in out
         assert 'total="2"' in out
+        assert 'truncated="false"' in out
         assert "- 2.31.0" in out
         assert "- 2.30.0" in out
         assert "</versions>" in out
@@ -263,13 +264,28 @@ class TestRenderVersions:
         out = s.getvalue()
         assert 'showing="1"' in out
         assert 'total="142"' in out
+        assert 'truncated="true"' in out
 
-    def test_yanked_indicator(self) -> None:
-        """Yanked version shows '(yanked)' suffix."""
+    def test_all_yanked_type_attribute(self) -> None:
+        """All-yanked list uses type attribute, no inline suffix."""
         r, s = _renderer()
         versions = [VersionInfo(version=Version("1.0.0"), yanked=True)]
         r.render_versions("pkg", versions, total=1)
-        assert "(yanked)" in s.getvalue()
+        out = s.getvalue()
+        assert 'type="yanked"' in out
+        assert "- 1.0.0\n" in out  # no (yanked) suffix
+
+    def test_mixed_yanked_inline(self) -> None:
+        """Mixed list shows (yanked) inline, no type attribute."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(version=Version("1.0.0"), yanked=True),
+        ]
+        r.render_versions("pkg", versions, total=2)
+        out = s.getvalue()
+        assert 'type="yanked"' not in out
+        assert "- 1.0.0 (yanked)" in out
 
     def test_yanked_with_reason(self) -> None:
         """Yanked version with reason shows '(yanked: reason)' suffix."""
@@ -283,6 +299,23 @@ class TestRenderVersions:
         ]
         r.render_versions("pkg", versions, total=1)
         assert "(yanked: security fix)" in s.getvalue()
+
+    def test_mixed_yanked_with_reason_no_duplication(self) -> None:
+        """Mixed list with reason shows '(yanked: reason)', not both suffixes."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(
+                version=Version("1.0.0"),
+                yanked=True,
+                yanked_reason="security fix",
+            ),
+        ]
+        r.render_versions("pkg", versions, total=2)
+        out = s.getvalue()
+        assert "(yanked: security fix)" in out
+        # Bare (yanked) must NOT appear — reason takes precedence
+        assert "(yanked) " not in out
 
 
 # ---------------------------------------------------------------------------
@@ -931,8 +964,8 @@ class TestRenderDepsDiff:
 class TestRenderVersionsMatching:
     """Test version list rendering with a version filter."""
 
-    def test_matching_filter(self) -> None:
-        """Render versions with matching filter attributes."""
+    def test_matching_filter_no_truncation(self) -> None:
+        """All matching versions shown — attributes include matched."""
         r, s = _renderer()
         versions = [
             VersionInfo(version=Version("2.31.0")),
@@ -949,8 +982,27 @@ class TestRenderVersionsMatching:
         assert _DATA_OPEN in out
         assert _DATA_CLOSE in out
         assert 'matching=">=2.0"' in out
-        assert 'count="2"' in out
+        assert 'matched="2"' in out
+        assert 'showing="2"' in out
         assert 'total="100"' in out
+        assert 'truncated="false"' in out
+
+    def test_matching_filter_with_truncation(self) -> None:
+        """Matching + limit: attributes show showing, matched, and total."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("3.0.0"))]
+        r.render_versions(
+            "requests",
+            versions,
+            total=50,
+            matching=">=2.0",
+            original_total=200,
+        )
+        out = s.getvalue()
+        assert 'showing="1"' in out
+        assert 'matched="50"' in out
+        assert 'total="200"' in out
+        assert 'truncated="true"' in out
 
 
 # ---------------------------------------------------------------------------

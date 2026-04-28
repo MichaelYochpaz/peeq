@@ -12,8 +12,10 @@ import posixpath
 import sys
 from typing import TYPE_CHECKING
 
+from rich.columns import Columns
 from rich.console import Console, Group
 from rich.markup import escape as rich_escape
+from rich.padding import Padding
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
@@ -418,31 +420,101 @@ class RichRenderer(Renderer):
         matching: str | None = None,
         original_total: int | None = None,
     ) -> None:
-        """Render version list with optional limit and filter indicators."""
+        """Render version list as a responsive multi-column grid."""
         safe_name = rich_escape(name)
-        if matching and original_total is not None:
-            header = (
-                f"{safe_name} versions ({total} of {original_total}"
-                f" matching {rich_escape(matching)}):"
-            )
-        elif len(versions) < total:
-            header = f"{safe_name} versions (showing {len(versions)} of {total}):"
-        else:
-            header = f"{safe_name} versions ({total}):"
+        showing = len(versions)
+        latest = rich_escape(str(versions[0].version)) if versions else None
+        all_yanked = bool(versions) and all(v.yanked for v in versions)
 
+        # -- Header ----------------------------------------------------------
+        header = self._versions_header(
+            safe_name,
+            showing,
+            total,
+            latest,
+            matching,
+            original_total,
+            all_yanked=all_yanked,
+        )
         self._console.print(f"[bold]{header}[/bold]")
-        for i, version in enumerate(versions):
-            label = f"  - [version]{rich_escape(str(version.version))}[/version]"
-            if i == 0:
-                label += " [dim](latest)[/dim]"
-            if version.yanked:
-                reason = (
-                    f": {rich_escape(version.yanked_reason)}"
-                    if version.yanked_reason
-                    else ""
+
+        if not versions:
+            return
+
+        # -- Grid body -------------------------------------------------------
+        max_ver_len = max(len(str(v.version)) for v in versions)
+        renderables: list[Text] = []
+        for v in versions:
+            ver_str = str(v.version)
+            padded = ver_str.ljust(max_ver_len)
+            use_strike = v.yanked and not all_yanked
+
+            if v.release_date:
+                date_str = f"{v.release_date:%Y-%m-%d}"
+                if use_strike:
+                    renderables.append(
+                        Text(f"{padded} ({date_str})", style="dim strike")
+                    )
+                else:
+                    renderables.append(
+                        Text.assemble(
+                            (padded, "version"),
+                            (" (", "dim"),
+                            (date_str, "dim"),
+                            (")", "dim"),
+                        )
+                    )
+            else:
+                style = "dim strike" if use_strike else "version"
+                renderables.append(Text(padded, style=style))
+
+        grid = Columns(renderables, padding=(0, 3), equal=True)
+        self._console.print(Padding(grid, (0, 0, 0, 2)))
+
+        # -- Yanked-reasons footnote -----------------------------------------
+        if any(v.yanked and v.yanked_reason for v in versions):
+            self._console.print()
+            self._console.print("[bold]Yanked:[/bold]")
+            for vr in versions:
+                if vr.yanked and vr.yanked_reason:
+                    self._console.print(
+                        f"  - [version]{rich_escape(str(vr.version))}[/version]:"
+                        f" [yanked]{rich_escape(vr.yanked_reason)}[/yanked]"
+                    )
+
+    @staticmethod
+    def _versions_header(  # noqa: PLR0913
+        safe_name: str,
+        showing: int,
+        total: int,
+        latest: str | None,
+        matching: str | None,
+        original_total: int | None,
+        *,
+        all_yanked: bool = False,
+    ) -> str:
+        """Build the header line for `render_versions`."""
+        kind = "yanked versions" if all_yanked else "versions"
+
+        if matching and original_total is not None:
+            if showing < total:
+                core = (
+                    f"{safe_name} {kind} (showing {showing} of {total}"
+                    f" matching {rich_escape(matching)};"
+                    f" {original_total} total"
                 )
-                label += f" [yanked](yanked{reason})[/yanked]"
-            self._console.print(label)
+            else:
+                core = (
+                    f"{safe_name} {kind} ({total} of {original_total}"
+                    f" matching {rich_escape(matching)}"
+                )
+        elif showing < total:
+            core = f"{safe_name} {kind} (showing {showing} of {total}"
+        else:
+            core = f"{safe_name} {kind} ({total}"
+
+        suffix = f", latest: {latest}" if latest else ""
+        return f"{core}{suffix}):"
 
     def render_deps(
         self,

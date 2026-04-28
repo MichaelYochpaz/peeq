@@ -81,7 +81,7 @@ class TestRenderVersions:
     """Test version list JSON rendering."""
 
     def test_basic(self) -> None:
-        """Render version list with showing/total counts."""
+        """Render version list with showing/total/truncated counts."""
         r, s = _renderer()
         versions = [
             VersionInfo(version=Version("2.31.0")),
@@ -96,6 +96,15 @@ class TestRenderVersions:
         assert data["versions"][1]["version"] == "2.30.0"
         assert data["showing"] == 2
         assert data["total"] == 142
+        assert data["truncated"] is True
+
+    def test_not_truncated(self) -> None:
+        """truncated is false when showing all versions."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        r.render_versions("pkg", versions, total=1)
+        data = _parse(s)
+        assert data["truncated"] is False
 
     def test_version_object_structure(self) -> None:
         """Version entries are objects with version, yanked, yanked_reason."""
@@ -779,6 +788,24 @@ class TestRenderVersionsMatching:
         assert data["matching"] == ">=2.0"
         assert data["matched"] == 2
         assert data["total"] == 100
+        assert data["truncated"] is False
+
+    def test_matching_with_truncation(self) -> None:
+        """Matching + limit: truncated is true when showing < matched."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("3.0.0"))]
+        r.render_versions(
+            "requests",
+            versions,
+            total=50,
+            matching=">=2.0",
+            original_total=200,
+        )
+        data = _parse(s)
+        assert data["showing"] == 1
+        assert data["matched"] == 50
+        assert data["total"] == 200
+        assert data["truncated"] is True
 
 
 # ---------------------------------------------------------------------------

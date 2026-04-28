@@ -63,10 +63,13 @@ peeq versions requests --matching ">=2.28,<3" --pre --format agent
 peeq versions requests --yanked --format agent
 ```
 
-- `--limit N` — Maximum versions to show.
+- `--limit N` — Maximum versions to show (default 20).
+- `--all` — Show all versions (no limit). Cannot combine with `--limit`.
 - `--matching <specifier>` — Version filter (e.g., `">=2.0,<3"`).
 - `--pre` — Include pre-releases. Requires `--matching`.
 - `--yanked` — Show only yanked versions with their reasons.
+
+When agent output shows `truncated="true"` on the `<versions>` tag, use `--all` to see all versions, or `--matching` to narrow by specifier.
 
 ### Artifacts
 
@@ -95,7 +98,7 @@ peeq ls requests --version 2.31.0 --format agent
 - `--prefix PATH` — Show entries under this path (e.g., `src/`).
 - `-r`, `--recursive` — Flat recursive file listing.
 - `--limit N` — Maximum entries to show (default 50).
-- `--all` — Show all entries (no limit).
+- `--all` — Show all entries (no limit). Cannot combine with `--limit`.
 
 Check the `showing`, `total`, and `truncated` attributes in agent output. If `truncated="true"`, narrow results with `--prefix` to explore a specific directory, or use `--all` to see all entries.
 

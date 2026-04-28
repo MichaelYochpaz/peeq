@@ -66,6 +66,7 @@ class JSONRenderer(Renderer):
         original_total: int | None = None,
     ) -> None:
         """Render version list as JSON."""
+        showing = len(versions)
         data: dict[str, Any] = {
             "command": "versions",
             "name": name,
@@ -77,12 +78,15 @@ class JSONRenderer(Renderer):
                 }
                 for version in versions
             ],
-            "showing": len(versions),
+            "showing": showing,
             "total": total,
+            "truncated": showing < total,
         }
         if matching is not None:
             data["matching"] = matching
             data["matched"] = total
+            # Overwrites the matched-count total with the registry-wide
+            # total — must stay AFTER the truncated computation above.
             data["total"] = original_total
         self._output(data)
 

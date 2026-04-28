@@ -194,7 +194,7 @@ def _build_target_env(
 
 
 _DEFAULT_VERSION_LIMIT: int = 20
-"""Default maximum number of versions to show in the `info` report."""
+"""Default maximum number of versions to show in `info` and `versions`."""
 
 _DEFAULT_LS_LIMIT: int = 50
 """Default maximum number of entries to show in directory listings."""
@@ -419,7 +419,7 @@ async def info(  # noqa: PLR0913
 
 
 @app.command
-async def versions(
+async def versions(  # noqa: PLR0913
     package: Annotated[str, Parameter(help="Package name.")],
     *,
     limit: Annotated[
@@ -428,7 +428,14 @@ async def versions(
             name="--limit",
             help="Maximum number of versions to show.",
         ),
-    ] = None,
+    ] = _DEFAULT_VERSION_LIMIT,
+    show_all: Annotated[
+        bool,
+        Parameter(
+            name="--all",
+            help="Show all versions (no limit).",
+        ),
+    ] = False,
     yanked: Annotated[
         bool,
         Parameter(
@@ -453,6 +460,18 @@ async def versions(
 ) -> None:
     """List all available versions of a package."""
     renderer = _get_renderer()
+
+    # Validate flag conflicts
+    if show_all and limit != _DEFAULT_VERSION_LIMIT:
+        renderer.render_error("--all and --limit cannot be used together")
+        raise SystemExit(1)
+
+    if limit is not None and limit < 0:
+        renderer.render_error("--limit must be non-negative")
+        raise SystemExit(1)
+
+    if show_all:
+        limit = None
 
     if pre and not matching:
         renderer.render_error("--pre requires --matching")

@@ -190,12 +190,42 @@ class TestRenderVersions:
         out = s.getvalue()
         assert "showing 1 of 142" in out
 
-    def test_yanked_indicator(self) -> None:
-        """Yanked version shows '(yanked)' suffix."""
+    def test_all_yanked_header(self) -> None:
+        """All-yanked list uses 'yanked versions' header, no inline suffix."""
         r, s = _renderer()
         versions = [VersionInfo(version=Version("1.0.0"), yanked=True)]
         r.render_versions("pkg", versions, total=1)
-        assert "(yanked)" in s.getvalue()
+        out = s.getvalue()
+        assert "yanked versions" in out
+        assert "(yanked)" not in out
+
+    def test_mixed_yanked_inline(self) -> None:
+        """Mixed list shows (yanked) inline, normal header."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(version=Version("1.0.0"), yanked=True),
+        ]
+        r.render_versions("pkg", versions, total=2)
+        out = s.getvalue()
+        assert "yanked versions" not in out
+        assert "(yanked)" in out
+
+    def test_release_date_shown(self) -> None:
+        """Release date appears in parentheses after the version."""
+        r, s = _renderer()
+        dt = datetime(2025, 6, 15, tzinfo=timezone.utc)
+        versions = [VersionInfo(version=Version("1.0.0"), release_date=dt)]
+        r.render_versions("pkg", versions, total=1)
+        assert "1.0.0 (2025-06-15)" in s.getvalue()
+
+    def test_date_before_latest(self) -> None:
+        """Date appears between version and (latest) annotation."""
+        r, s = _renderer()
+        dt = datetime(2025, 6, 15, tzinfo=timezone.utc)
+        versions = [VersionInfo(version=Version("1.0.0"), release_date=dt)]
+        r.render_versions("pkg", versions, total=1)
+        assert "1.0.0 (2025-06-15) (latest)" in s.getvalue()
 
     def test_yanked_with_reason(self) -> None:
         """Yanked version with reason shows '(yanked: reason)' suffix."""
@@ -209,6 +239,23 @@ class TestRenderVersions:
         ]
         r.render_versions("pkg", versions, total=1)
         assert "(yanked: security fix)" in s.getvalue()
+
+    def test_mixed_yanked_with_reason_no_duplication(self) -> None:
+        """Mixed list with reason shows '(yanked: reason)', not both suffixes."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(
+                version=Version("1.0.0"),
+                yanked=True,
+                yanked_reason="security fix",
+            ),
+        ]
+        r.render_versions("pkg", versions, total=2)
+        out = s.getvalue()
+        assert "(yanked: security fix)" in out
+        # Bare (yanked) must NOT appear — reason takes precedence
+        assert "(yanked) " not in out
 
 
 # ---------------------------------------------------------------------------
@@ -760,8 +807,8 @@ class TestRenderDepsDiff:
 class TestRenderVersionsMatching:
     """Test version list rendering with a version filter."""
 
-    def test_matching_filter(self) -> None:
-        """Render versions with matching filter info."""
+    def test_matching_filter_no_truncation(self) -> None:
+        """All matching versions shown — header omits 'showing'."""
         r, s = _renderer()
         versions = [
             VersionInfo(version=Version("2.31.0")),
@@ -776,6 +823,21 @@ class TestRenderVersionsMatching:
         )
         out = s.getvalue()
         assert "2 of 100 matching >=2.0" in out
+
+    def test_matching_filter_with_truncation(self) -> None:
+        """Matching + limit: header shows showing, matched, and total."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("3.0.0"))]
+        r.render_versions(
+            "requests",
+            versions,
+            total=50,
+            matching=">=2.0",
+            original_total=200,
+        )
+        out = s.getvalue()
+        assert "showing 1 of 50 matching >=2.0" in out
+        assert "200 total" in out
 
 
 # ---------------------------------------------------------------------------

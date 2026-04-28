@@ -18,13 +18,16 @@ peeq versions <package> [options]
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--limit` | integer | all | Maximum number of versions to show. |
+| `--limit` | integer | 20 | Maximum number of versions to show. |
+| `--all` | flag | off | Show all versions (no limit). |
 | `--yanked` | flag | off | Show only yanked versions with their yank reasons. |
 | `--matching` | string | -- | PEP 440 version specifier to filter versions (e.g., `">=2.0,<3"`). |
 | `--pre`, `--prerelease` | flag | off | Include pre-release versions when using `--matching`. |
 
 ### Option interaction rules
 
+- `--all` and `--limit` cannot be used together.
+- `--limit` must be non-negative.
 - `--pre` requires `--matching`. Pre-release filtering only applies when a specifier is active.
 
 ### PEP 440 specifiers
@@ -41,16 +44,36 @@ The `--matching` option accepts standard [PEP 440](https://peps.python.org/pep-0
 
 ## Examples
 
+### List versions with default limit
+
+```
+$ peeq versions requests
+requests versions (showing 20 of 156):
+  - 2.33.1 (2026-03-30) (latest)
+  - 2.33.0 (2026-03-25)
+  - 2.32.5 (2025-08-18)
+  - 2.32.4 (2025-06-09)
+  - 2.32.3 (2024-05-29)
+  - 2.32.2 (2024-05-21)
+  - 2.32.1 (2024-05-20) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation )
+  - 2.32.0 (2024-05-20) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation)
+  - 2.31.0 (2023-05-22)
+  - 2.30.0 (2023-05-03)
+...
+```
+
+By default, the 20 most recent versions are shown. Use `--all` to show every version, or `--limit N` to set a custom limit.
+
 ### List recent versions
 
 ```
 $ peeq versions requests --limit 5
 requests versions (showing 5 of 156):
-  - 2.33.1 (latest)
-  - 2.33.0
-  - 2.32.5
-  - 2.32.4
-  - 2.32.3
+  - 2.33.1 (2026-03-30) (latest)
+  - 2.33.0 (2026-03-25)
+  - 2.32.5 (2025-08-18)
+  - 2.32.4 (2025-06-09)
+  - 2.32.3 (2024-05-29)
 ```
 
 ### Filter with a version specifier
@@ -58,14 +81,14 @@ requests versions (showing 5 of 156):
 ```
 $ peeq versions requests --matching ">=2.30,<2.33"
 requests versions (8 of 156 matching >=2.30,<2.33):
-  - 2.32.5 (latest)
-  - 2.32.4
-  - 2.32.3
-  - 2.32.2
-  - 2.32.1 (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation )
-  - 2.32.0 (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation)
-  - 2.31.0
-  - 2.30.0
+  - 2.32.5 (2025-08-18) (latest)
+  - 2.32.4 (2025-06-09)
+  - 2.32.3 (2024-05-29)
+  - 2.32.2 (2024-05-21)
+  - 2.32.1 (2024-05-20) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation )
+  - 2.32.0 (2024-05-20) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation)
+  - 2.31.0 (2023-05-22)
+  - 2.30.0 (2023-05-03)
 ```
 
 Yanked versions appear in the output with their yank reason when they match the specifier.
@@ -75,9 +98,9 @@ They are included in the count but are not considered "latest."
 
 ```
 $ peeq versions requests --yanked
-requests versions (2):
-  - 2.32.1 (latest) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation )
-  - 2.32.0 (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation)
+requests yanked versions (2):
+  - 2.32.1 (2024-05-20) (latest) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation )
+  - 2.32.0 (2024-05-20) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation)
 ```
 
 ## See also

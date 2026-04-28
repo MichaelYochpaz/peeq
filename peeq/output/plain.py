@@ -169,28 +169,43 @@ class PlainRenderer(Renderer):
     ) -> None:
         """Render version list as a dash list."""
         safe_name = self._safe(name)
+        showing = len(versions)
+        all_yanked = bool(versions) and all(v.yanked for v in versions)
+        kind = "yanked versions" if all_yanked else "versions"
+
         if matching and original_total is not None:
-            header = (
-                f"{safe_name} versions"
-                f" ({total} of {original_total} matching {self._safe(matching)}):"
-            )
-        elif len(versions) < total:
-            header = f"{safe_name} versions (showing {len(versions)} of {total}):"
+            if showing < total:
+                header = (
+                    f"{safe_name} {kind}"
+                    f" (showing {showing} of {total}"
+                    f" matching {self._safe(matching)};"
+                    f" {original_total} total):"
+                )
+            else:
+                header = (
+                    f"{safe_name} {kind}"
+                    f" ({total} of {original_total}"
+                    f" matching {self._safe(matching)}):"
+                )
+        elif showing < total:
+            header = f"{safe_name} {kind} (showing {showing} of {total}):"
         else:
-            header = f"{safe_name} versions ({total}):"
+            header = f"{safe_name} {kind} ({total}):"
 
         self._writeln(header)
         for i, version in enumerate(versions):
             label = f"  - {self._safe(str(version.version))}"
+            if version.release_date:
+                label += f" ({version.release_date:%Y-%m-%d})"
             if i == 0:
                 label += " (latest)"
-            if version.yanked:
-                reason = (
-                    f": {self._safe(version.yanked_reason)}"
-                    if version.yanked_reason
-                    else ""
-                )
-                label += f" (yanked{reason})"
+            # Show (yanked) only when the list is mixed; when all
+            # versions are yanked the header already conveys it.
+            # (yanked: reason) takes precedence over bare (yanked).
+            if version.yanked_reason:
+                label += f" (yanked: {self._safe(version.yanked_reason)})"
+            elif version.yanked and not all_yanked:
+                label += " (yanked)"
             self._writeln(label)
 
     def render_deps(

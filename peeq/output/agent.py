@@ -274,24 +274,30 @@ class AgentRenderer(Renderer):
     ) -> None:
         """Render version list in XML-bounded block."""
         self._write_data_open()
+        showing = len(versions)
+        registry_total = original_total if original_total is not None else total
+        truncated = "true" if showing < total else "false"
+        all_yanked = bool(versions) and all(v.yanked for v in versions)
+
+        attrs = (
+            f"<versions package={escape_xml_attr(name)}"
+            f' showing="{showing}" total="{registry_total}"'
+            f' truncated="{truncated}"'
+        )
+        if all_yanked:
+            attrs += ' type="yanked"'
         if matching is not None and original_total is not None:
-            self._writeln(
-                f"<versions package={escape_xml_attr(name)} matching={escape_xml_attr(matching)} "
-                f'count="{total}" total="{original_total}">'
-            )
-        else:
-            self._writeln(
-                f'<versions package={escape_xml_attr(name)} showing="{len(versions)}" total="{total}">'
-            )
+            attrs += f' matching={escape_xml_attr(matching)} matched="{total}"'
+        self._writeln(f"{attrs}>")
+
         for version in versions:
             suffix = ""
-            if version.yanked:
-                reason = (
-                    f": {escape_xml(version.yanked_reason)}"
-                    if version.yanked_reason
-                    else ""
-                )
-                suffix = f" (yanked{reason})"
+            # Show (yanked) only when the list is mixed; when all
+            # versions are yanked the type attribute conveys it.
+            if version.yanked and not all_yanked:
+                suffix = " (yanked)"
+            if version.yanked_reason:
+                suffix = f" (yanked: {escape_xml(version.yanked_reason)})"
             self._writeln(f"- {escape_xml(str(version.version))}{suffix}")
         self._writeln("</versions>")
         self._write_data_close()

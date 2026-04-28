@@ -1,7 +1,7 @@
 """Unit tests for the `versions` CLI command.
 
-Covers `--matching`, `--pre`, `--yanked`, and `--limit` flag
-behavior, error handling, and renderer argument contracts for
+Covers `--matching`, `--pre`, `--yanked`, `--limit`, and `--all`
+flag behavior, error handling, and renderer argument contracts for
 `peeq versions`.
 
 All tests use mock-only isolation — no network or filesystem access.
@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from packaging.version import Version
 
-from peeq.cli import versions
+from peeq.cli import _DEFAULT_VERSION_LIMIT, versions
 from peeq.models import VersionInfo
 
 # ---------------------------------------------------------------------------
@@ -362,6 +362,113 @@ class TestRendererArguments:
 
         total_arg = renderer.render_versions.call_args.args[2]
         assert total_arg == 2  # 3.0.0 and 2.0.0
+
+
+# ---------------------------------------------------------------------------
+# Tests: --all and --limit flag interactions
+# ---------------------------------------------------------------------------
+
+
+class TestAllFlag:
+    """Test that `--all` disables the default limit."""
+
+    async def test_all_shows_everything(self) -> None:
+        """`--all` returns all versions without slicing."""
+        # 30 versions — more than the default limit
+        all_versions = _make_versions(*(f"{i}.0.0" for i in range(30, 0, -1)))
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", show_all=True, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        total = renderer.render_versions.call_args.args[2]
+
+        assert total == 30
+        assert len(rendered_versions) == 30
+
+    async def test_all_and_limit_conflict(self) -> None:
+        """`--all` combined with `--limit` renders an error and exits."""
+        renderer = _make_renderer()
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            await versions("testpkg", show_all=True, limit=100, pre=False)
+
+        renderer.render_error.assert_called_once_with(
+            "--all and --limit cannot be used together"
+        )
+
+
+class TestDefaultLimit:
+    """Test that the default limit truncates version lists."""
+
+    async def test_default_limit_applied(self) -> None:
+        """Versions are truncated to the default limit."""
+        count = _DEFAULT_VERSION_LIMIT + 10
+        all_versions = _make_versions(*(f"{i}.0.0" for i in range(count, 0, -1)))
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        total = renderer.render_versions.call_args.args[2]
+
+        assert len(rendered_versions) == _DEFAULT_VERSION_LIMIT
+        assert total == count
+
+    async def test_small_list_unaffected(self) -> None:
+        """Lists smaller than the default limit are not truncated."""
+        all_versions = _make_versions("3.0.0", "2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        assert len(rendered_versions) == 3
+
+    async def test_negative_limit_rejected(self) -> None:
+        """Negative `--limit` renders an error and exits."""
+        renderer = _make_renderer()
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            await versions("testpkg", limit=-1, pre=False)
+
+        renderer.render_error.assert_called_once_with("--limit must be non-negative")
+
+    async def test_limit_zero_shows_nothing(self) -> None:
+        """`--limit 0` produces an empty display list."""
+        all_versions = _make_versions("2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", limit=0, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        assert len(rendered_versions) == 0
 
 
 # ---------------------------------------------------------------------------
