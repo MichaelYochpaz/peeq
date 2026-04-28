@@ -345,6 +345,7 @@ async def info(  # noqa: PLR0913
         bool,
         Parameter(
             name="--versions",
+            show_default=False,
             help="Include version list in the report.",
         ),
     ] = False,
@@ -352,6 +353,7 @@ async def info(  # noqa: PLR0913
         bool,
         Parameter(
             name="--vulns",
+            show_default=False,
             help="Include vulnerability scan (queries OSV database).",
         ),
     ] = False,
@@ -359,6 +361,7 @@ async def info(  # noqa: PLR0913
         bool,
         Parameter(
             name="--deps",
+            show_default=False,
             help="Include dependency list.",
         ),
     ] = False,
@@ -366,6 +369,7 @@ async def info(  # noqa: PLR0913
         bool,
         Parameter(
             name="--full",
+            show_default=False,
             help="Include all optional sections (versions, vulnerabilities, dependencies).",
         ),
     ] = False,
@@ -444,6 +448,7 @@ async def versions(  # noqa: PLR0913
         bool,
         Parameter(
             name="--yanked",
+            show_default=False,
             help="Show only yanked versions with their reasons.",
         ),
     ] = False,
@@ -458,6 +463,7 @@ async def versions(  # noqa: PLR0913
         bool,
         Parameter(
             name=["--pre", "--prerelease"],
+            show_default=False,
             help="Include pre-release versions in --matching filter.",
         ),
     ] = False,
@@ -700,6 +706,8 @@ async def ls_cmd(  # noqa: PLR0913
         bool,
         Parameter(
             name="--all",
+            negative="",
+            show_default=False,
             help="Show all entries (no limit).",
         ),
     ] = False,
@@ -714,6 +722,7 @@ async def ls_cmd(  # noqa: PLR0913
         bool,
         Parameter(
             name=["--recursive", "-r"],
+            show_default=False,
             help="Flat recursive file listing instead of directory navigation.",
         ),
     ] = False,
@@ -792,6 +801,7 @@ async def cat_cmd(
         bool,
         Parameter(
             name="--full",
+            show_default=False,
             help="Show complete content (no byte limit).",
         ),
     ] = False,
@@ -885,6 +895,7 @@ async def download(
         bool,
         Parameter(
             name="--extract",
+            show_default=False,
             help=("Extract archive contents instead of copying."),
         ),
     ] = False,
@@ -985,6 +996,7 @@ async def resolve(
         bool,
         Parameter(
             name=["--pre", "--prerelease"],
+            show_default=False,
             help="Include pre-release versions in resolution.",
         ),
     ] = False,
@@ -1129,6 +1141,7 @@ async def why(
         bool,
         Parameter(
             name=["--pre", "--prerelease"],
+            show_default=False,
             help="Include pre-release versions in resolution.",
         ),
     ] = False,
