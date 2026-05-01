@@ -362,6 +362,8 @@ class PackageService:
         errors: dict[str, str] = {}
 
         version_invalid = False
+        target_yanked: bool | None = None
+        target_yanked_reason: str | None = None
         if target_version is not None and target_version.lower() != "latest":
             resolved_version = target_version
             # Validate version exists
@@ -375,6 +377,13 @@ class PackageService:
                     if include_deps:
                         errors["deps"] = version_error
                     version_invalid = True
+                else:
+                    # Extract yanked status (Path A — explicit --version)
+                    for vi in all_versions:
+                        if str(vi.version) == resolved_version:
+                            target_yanked = vi.yanked
+                            target_yanked_reason = vi.yanked_reason
+                            break
             except Exception as exc:
                 # If version validation fails, still try — the version
                 # might exist
@@ -417,6 +426,14 @@ class PackageService:
             else:
                 versions_total = len(v)
                 versions_list = v[:version_limit] if version_limit is not None else v
+                # Path B — check yanked status from already-fetched versions
+                # when it wasn't determined via explicit --version validation.
+                if target_yanked is None:
+                    for vi in v:
+                        if str(vi.version) == resolved_version:
+                            target_yanked = vi.yanked
+                            target_yanked_reason = vi.yanked_reason
+                            break
 
         if "vulns" in result_map:
             v = result_map["vulns"]
@@ -433,6 +450,12 @@ class PackageService:
                 errors["deps"] = f"No metadata available for {name}=={resolved_version}"
             else:
                 metadata = v
+
+        # Clear requires_python for invalid target versions — the value
+        # on PackageInfo reflects the latest version, not the (missing)
+        # requested one.
+        if version_invalid:
+            base_info = base_info.model_copy(update={"requires_python": None})
 
         # When targeting a non-latest version, update requires_python
         # from the version's file list (the Simple API data is already
@@ -457,9 +480,9 @@ class PackageService:
 
         return InfoReport(
             info=base_info,
-            target_version=(
-                resolved_version if (include_vulns or include_deps) else None
-            ),
+            target_version=resolved_version,
+            target_version_yanked=target_yanked,
+            target_version_yanked_reason=target_yanked_reason,
             versions=versions_list,
             versions_total=versions_total,
             vulnerabilities=vuln_report,

@@ -49,7 +49,7 @@ class TestRenderInfo:
     """Test package info rendering via Rich."""
 
     def test_basic(self) -> None:
-        """Render package info with all key fields."""
+        """Render package info with version section divider."""
         r, s = _renderer()
         r.render_info(_info_report())
         out = s.getvalue()
@@ -57,6 +57,8 @@ class TestRenderInfo:
         assert "2.31.0" in out
         assert "142" in out
         assert "pypi.org" in out
+        # Version section divider always present
+        assert "Version 2.31.0 (latest)" in out
 
     def test_with_summary(self) -> None:
         """Summary appears in output."""
@@ -250,6 +252,64 @@ class TestRenderInfo:
         assert "Error" in out
         assert "vulns" in out
         assert "OSV API timeout" in out
+
+    def test_requires_python_in_version_section(self) -> None:
+        """requires_python appears in the version section, not base info."""
+        r, s = _renderer()
+        r.render_info(_info_report(requires_python=">=3.8"))
+        out = s.getvalue()
+        assert "Python" in out
+        assert ">=3.8" in out
+        # Version divider present
+        assert "Version 2.31.0 (latest)" in out
+
+    def test_yanked_warning(self) -> None:
+        """Yanked warning appears in the version section."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.30.0",
+            target_version_yanked=True,
+            target_version_yanked_reason="Security issue",
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert "Version 2.30.0 has been yanked" in out
+        assert "Security issue" in out
+        # Version section divider present
+        assert "Version 2.30.0" in out
+
+    def test_yanked_warning_no_reason(self) -> None:
+        """Yanked warning without reason has no trailing colon."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.30.0",
+            target_version_yanked=True,
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert "Version 2.30.0 has been yanked" in out
+        assert "has been yanked:" not in out
+
+    def test_no_yanked_warning_when_not_yanked(self) -> None:
+        """No warning when version is not yanked."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.31.0",
+            target_version_yanked=False,
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        # "yanked" should not appear except in version section context
+        assert "has been yanked" not in out
+
+    def test_no_yanked_warning_when_unchecked(self) -> None:
+        """No warning when yanked status is None (unchecked)."""
+        r, s = _renderer()
+        r.render_info(_info_report())
+        assert "has been yanked" not in s.getvalue()
 
 
 # ---------------------------------------------------------------------------

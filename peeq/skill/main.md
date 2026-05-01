@@ -199,8 +199,9 @@ For cache and config management, run `peeq cache --help` or `peeq config --help`
 ### Evaluate a Package
 
 1. Start with a full overview: `peeq info <pkg> --full --format agent`
+   The output is split into a package overview and a version-details section. Version-specific data (Python constraint, yanked status, vulnerabilities, dependencies) is grouped under a `<version-details>` tag. If the targeted version is yanked, a warning appears in the version-details section with the yank reason.
 2. If vulnerabilities are found for a version you'd pin, check details: `peeq vulns <pkg> --version <v> --format agent`
-3. Verify the version isn't yanked: `peeq versions <pkg> --yanked --format agent`
+3. To see all yanked versions with reasons: `peeq versions <pkg> --yanked --format agent`
 4. Check license or build config: `peeq cat <pkg> LICENSE --format agent` or `peeq cat <pkg> pyproject.toml --format agent`
 
 ### Inspect Package Contents

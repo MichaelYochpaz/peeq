@@ -309,6 +309,23 @@ class TestInfoOrchestration:
         # Vulns should still succeed
         assert report.vulnerabilities is not None
 
+    async def test_target_version_always_populated(self) -> None:
+        """target_version is set even without --vulns or --deps."""
+        backend = _make_backend()
+        latest_info = PackageInfo(
+            name="mylib",
+            latest_version=Version("2.0.0"),
+            version_count=1,
+            registry="pypi.org",
+        )
+        backend.check.return_value = latest_info
+
+        service = _make_service(backend=backend)
+        report = await service.info("mylib")
+
+        assert report is not None
+        assert report.target_version == "2.0.0"
+
     async def test_package_not_found_returns_none(self) -> None:
         """Return None when package does not exist."""
         backend = _make_backend()
@@ -318,3 +335,211 @@ class TestInfoOrchestration:
         report = await service.info("nonexistent")
 
         assert report is None
+
+
+# ===================================================================
+# Tests: PackageService.info() — yanked status
+# ===================================================================
+
+
+class TestInfoYankedStatus:
+    """Test yanked status population in `PackageService.info`."""
+
+    async def test_explicit_version_yanked(self) -> None:
+        """Yanked status is populated for an explicit yanked --version."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("3.0.0"),
+            version_count=3,
+            registry="pypi.org",
+        )
+        backend.versions.return_value = [
+            VersionInfo(version=Version("3.0.0")),
+            VersionInfo(
+                version=Version("2.0.0"),
+                yanked=True,
+                yanked_reason="Security issue",
+            ),
+            VersionInfo(version=Version("1.0.0")),
+        ]
+        backend.files.return_value = []
+
+        service = _make_service(backend=backend)
+        report = await service.info(
+            "mylib",
+            target_version="2.0.0",
+            include_deps=True,
+        )
+
+        assert report is not None
+        assert report.target_version == "2.0.0"
+        assert report.target_version_yanked is True
+        assert report.target_version_yanked_reason == "Security issue"
+
+    async def test_explicit_version_not_yanked(self) -> None:
+        """Yanked status is False for an explicit non-yanked --version."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("3.0.0"),
+            version_count=2,
+            registry="pypi.org",
+        )
+        backend.versions.return_value = [
+            VersionInfo(version=Version("3.0.0")),
+            VersionInfo(version=Version("2.0.0")),
+        ]
+        backend.files.return_value = []
+
+        service = _make_service(backend=backend)
+        report = await service.info(
+            "mylib",
+            target_version="2.0.0",
+            include_vulns=True,
+        )
+
+        assert report is not None
+        assert report.target_version_yanked is False
+        assert report.target_version_yanked_reason is None
+
+    async def test_explicit_version_yanked_no_reason(self) -> None:
+        """Yanked without reason sets yanked=True and reason=None."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("2.0.0"),
+            version_count=2,
+            registry="pypi.org",
+        )
+        backend.versions.return_value = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(version=Version("1.0.0"), yanked=True),
+        ]
+        backend.files.return_value = []
+
+        service = _make_service(backend=backend)
+        report = await service.info(
+            "mylib",
+            target_version="1.0.0",
+            include_deps=True,
+        )
+
+        assert report is not None
+        assert report.target_version_yanked is True
+        assert report.target_version_yanked_reason is None
+
+    async def test_include_versions_checks_latest_yanked(self) -> None:
+        """Path B: yanked status checked from versions list for latest."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("2.0.0"),
+            version_count=2,
+            registry="pypi.org",
+        )
+        backend.versions.return_value = [
+            VersionInfo(
+                version=Version("2.0.0"),
+                yanked=True,
+                yanked_reason="Broken release",
+            ),
+            VersionInfo(version=Version("1.0.0")),
+        ]
+
+        service = _make_service(backend=backend)
+        report = await service.info("mylib", include_versions=True)
+
+        assert report is not None
+        assert report.target_version_yanked is True
+        assert report.target_version_yanked_reason == "Broken release"
+
+    async def test_include_versions_latest_not_yanked(self) -> None:
+        """Path B: yanked status is False for non-yanked latest."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("2.0.0"),
+            version_count=2,
+            registry="pypi.org",
+        )
+        backend.versions.return_value = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(version=Version("1.0.0"), yanked=True),
+        ]
+
+        service = _make_service(backend=backend)
+        report = await service.info("mylib", include_versions=True)
+
+        assert report is not None
+        assert report.target_version_yanked is False
+        assert report.target_version_yanked_reason is None
+
+    async def test_bare_info_yanked_unchecked(self) -> None:
+        """Bare info (no flags) leaves yanked status as None."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("2.0.0"),
+            version_count=1,
+            registry="pypi.org",
+        )
+
+        service = _make_service(backend=backend)
+        report = await service.info("mylib")
+
+        assert report is not None
+        assert report.target_version_yanked is None
+        assert report.target_version_yanked_reason is None
+
+    async def test_invalid_version_yanked_unchecked(self) -> None:
+        """Invalid target version leaves yanked status as None."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("2.0.0"),
+            version_count=2,
+            registry="pypi.org",
+        )
+        backend.versions.return_value = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(version=Version("1.0.0")),
+        ]
+
+        service = _make_service(backend=backend)
+        report = await service.info(
+            "mylib",
+            target_version="99.0.0",
+            include_deps=True,
+        )
+
+        assert report is not None
+        assert report.target_version_yanked is None
+        assert report.target_version_yanked_reason is None
+
+    async def test_invalid_version_clears_requires_python(self) -> None:
+        """Invalid target version clears requires_python to avoid misattribution."""
+        backend = _make_backend()
+        backend.check.return_value = PackageInfo(
+            name="mylib",
+            latest_version=Version("2.0.0"),
+            version_count=2,
+            requires_python=">=3.10",
+            registry="pypi.org",
+        )
+        backend.versions.return_value = [
+            VersionInfo(version=Version("2.0.0")),
+            VersionInfo(version=Version("1.0.0")),
+        ]
+
+        service = _make_service(backend=backend)
+        report = await service.info(
+            "mylib",
+            target_version="99.0.0",
+            include_deps=True,
+        )
+
+        assert report is not None
+        # requires_python cleared — it would otherwise show the latest
+        # version's constraint under the invalid version header.
+        assert report.info.requires_python is None

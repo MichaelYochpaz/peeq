@@ -59,7 +59,7 @@ class TestRenderInfo:
     """Test package info rendering."""
 
     def test_basic(self) -> None:
-        """Render package info with all fields."""
+        """Render package info with <version-details> section."""
         r, s = _renderer()
         r.render_info(_info_report())
         out = s.getvalue()
@@ -67,11 +67,18 @@ class TestRenderInfo:
         assert _DATA_CLOSE in out
         assert "<package-info" in out
         assert 'name="requests"' in out
-        assert 'version="2.31.0"' in out
         assert "Latest Version: 2.31.0" in out
         assert "Versions: 142" in out
         assert "Registry: pypi.org" in out
         assert "</package-info>" in out
+        # version attribute is on <version-details>, not <package-info>
+        pkg_tag = out[
+            out.index("<package-info") : out.index(">", out.index("<package-info")) + 1
+        ]
+        assert "version=" not in pkg_tag
+        assert "<version-details" in out
+        assert 'version="2.31.0"' in out
+        assert "</version-details>" in out
 
     def test_with_summary(self) -> None:
         """Summary is included in output."""
@@ -85,8 +92,8 @@ class TestRenderInfo:
         r.render_info(_info_report(summary=None))
         assert "Summary:" not in s.getvalue()
 
-    def test_unified_panel_with_versions(self) -> None:
-        """Versions section renders inside the <package-info> tag."""
+    def test_versions_in_package_overview(self) -> None:
+        """Versions section renders in the package overview, not version details."""
         r, s = _renderer()
         versions = [
             VersionInfo(version=Version("2.31.0")),
@@ -102,19 +109,19 @@ class TestRenderInfo:
         # All inside one <package-info> block
         assert out.count("<package-info") == 1
         assert out.count("</package-info>") == 1
-        # Versions section uses inner tag without package attribute
-        assert "<versions" in out
+        # Versions section is outside <version-details>
+        versions_pos = out.index("<versions")
+        version_details_pos = out.index("<version-details")
+        assert versions_pos < version_details_pos
+        # Versions content present
         assert 'showing="2"' in out
         assert 'total="142"' in out
         assert "- 2.31.0" in out
         assert "- 2.30.0" in out
         assert "</versions>" in out
-        # No package attribute on inner tag
-        inner_versions = out[out.index("<versions") : out.index("</versions>")]
-        assert "package=" not in inner_versions
 
-    def test_unified_panel_with_vulns_clean(self) -> None:
-        """No-vulns section renders inside the <package-info> tag."""
+    def test_vulns_inside_version_details(self) -> None:
+        """Vulnerabilities render inside <version-details>."""
         r, s = _renderer()
         report = InfoReport(
             info=_pkg_info(),
@@ -129,9 +136,14 @@ class TestRenderInfo:
         assert '<vulnerabilities count="0">' in out
         assert "No known vulnerabilities." in out
         assert "</vulnerabilities>" in out
+        # Vulns nested inside version-details
+        vd_start = out.index("<version-details")
+        vd_end = out.index("</version-details>")
+        vulns_pos = out.index("<vulnerabilities")
+        assert vd_start < vulns_pos < vd_end
 
-    def test_unified_panel_with_vulns_found(self) -> None:
-        """Vulnerability bullets render inside the <package-info> tag."""
+    def test_vulns_found_inside_version_details(self) -> None:
+        """Vulnerability bullets render inside <version-details>."""
         r, s = _renderer()
         vuln = VulnerabilityInfo(
             id="GHSA-test",
@@ -156,8 +168,8 @@ class TestRenderInfo:
         assert "Test vuln" in out
         assert 'count="1"' in out
 
-    def test_unified_panel_with_deps(self) -> None:
-        """Dependencies render inside the <package-info> tag."""
+    def test_deps_inside_version_details(self) -> None:
+        """Dependencies render inside <version-details>."""
         r, s = _renderer()
         report = InfoReport(
             info=_pkg_info(),
@@ -171,13 +183,14 @@ class TestRenderInfo:
         assert "- urllib3 >=1.21" in out
         assert "- certifi >=2.0" in out
         assert "</dependencies>" in out
-        # No package/version on inner tag
-        inner = out[out.index("<dependencies") : out.index("</dependencies>")]
-        assert "package=" not in inner
-        assert "version=" not in inner
+        # Deps nested inside version-details
+        vd_start = out.index("<version-details")
+        vd_end = out.index("</version-details>")
+        deps_pos = out.index("<dependencies")
+        assert vd_start < deps_pos < vd_end
 
-    def test_unified_panel_full(self) -> None:
-        """All sections render inside a single <package-info> block."""
+    def test_full_structure(self) -> None:
+        """All sections render with correct nesting structure."""
         r, s = _renderer()
         versions = [VersionInfo(version=Version("2.31.0"))]
         report = InfoReport(
@@ -196,15 +209,21 @@ class TestRenderInfo:
         # One outer wrapper
         assert out.count("<package-info") == 1
         assert out.count("</package-info>") == 1
-        # All sections present
-        assert "<versions" in out
-        assert "<vulnerabilities" in out
-        assert "<dependencies" in out
+        # Version-details wrapper
+        assert out.count("<version-details") == 1
+        assert out.count("</version-details>") == 1
+        # Versions in package overview (before version-details)
+        assert out.index("<versions") < out.index("<version-details")
+        # Vulns and deps inside version-details
+        vd_start = out.index("<version-details")
+        vd_end = out.index("</version-details>")
+        assert vd_start < out.index("<vulnerabilities") < vd_end
+        assert vd_start < out.index("<dependencies") < vd_end
         assert "- urllib3 >=1.21" in out
         assert "No known vulnerabilities." in out
 
-    def test_unified_panel_errors(self) -> None:
-        """Error messages render inside the <package-info> tag."""
+    def test_errors_inside_version_details(self) -> None:
+        """Error messages render inside <version-details>."""
         r, s = _renderer()
         report = InfoReport(
             info=_pkg_info(),
@@ -215,10 +234,14 @@ class TestRenderInfo:
         assert "<errors>" in out
         assert "OSV API timeout" in out
         assert "</errors>" in out
-        assert "</package-info>" in out
+        # Errors nested inside version-details
+        vd_start = out.index("<version-details")
+        vd_end = out.index("</version-details>")
+        errors_pos = out.index("<errors>")
+        assert vd_start < errors_pos < vd_end
 
-    def test_target_version_attribute(self) -> None:
-        """When --version is used, the version attribute reflects it."""
+    def test_target_version_on_version_details(self) -> None:
+        """Target version appears on <version-details>, not <package-info>."""
         r, s = _renderer()
         report = InfoReport(
             info=_pkg_info(),
@@ -226,7 +249,78 @@ class TestRenderInfo:
         )
         r.render_info(report)
         out = s.getvalue()
-        assert 'version="2.28.0"' in out
+        # version attribute on version-details
+        vd_tag = out[
+            out.index("<version-details") : out.index(
+                ">", out.index("<version-details")
+            )
+            + 1
+        ]
+        assert 'version="2.28.0"' in vd_tag
+        # Not on package-info
+        pkg_tag = out[
+            out.index("<package-info") : out.index(">", out.index("<package-info")) + 1
+        ]
+        assert "version=" not in pkg_tag
+
+    def test_yanked_attributes_on_version_details(self) -> None:
+        """Yanked attributes appear on <version-details>."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.30.0",
+            target_version_yanked=True,
+            target_version_yanked_reason="Security issue",
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        # Attributes on <version-details>
+        vd_tag = out[
+            out.index("<version-details") : out.index(
+                ">", out.index("<version-details")
+            )
+            + 1
+        ]
+        assert 'yanked="true"' in vd_tag
+        assert 'yanked-reason="Security issue"' in vd_tag
+        # WARNING text inside the block
+        assert "WARNING: Version 2.30.0 has been yanked: Security issue" in out
+
+    def test_yanked_warning_no_reason(self) -> None:
+        """Yanked without reason: attribute present, no reason attribute."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.30.0",
+            target_version_yanked=True,
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert 'yanked="true"' in out
+        assert "yanked-reason" not in out
+        assert "WARNING: Version 2.30.0 has been yanked" in out
+        assert "has been yanked:" not in out
+
+    def test_no_yanked_attributes_when_not_yanked(self) -> None:
+        """No yanked attributes when version is not yanked."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.31.0",
+            target_version_yanked=False,
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert "yanked" not in out
+        assert "WARNING" not in out
+
+    def test_no_yanked_attributes_when_unchecked(self) -> None:
+        """No yanked attributes when status is None (unchecked)."""
+        r, s = _renderer()
+        r.render_info(_info_report())
+        out = s.getvalue()
+        assert "yanked" not in out
+        assert "WARNING" not in out
 
 
 # ---------------------------------------------------------------------------

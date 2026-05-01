@@ -116,8 +116,6 @@ class PlainRenderer(Renderer):
         self._writeln(f"Versions: {info.version_count}")
         if info.license is not None:
             self._writeln(f"License: {self._safe(info.license)}")
-        if info.requires_python is not None:
-            self._writeln(f"Python: {self._safe(info.requires_python)}")
         if info.author is not None:
             self._writeln(f"Author: {self._safe(info.author)}")
         self._writeln(f"Registry: {info.registry}")
@@ -126,11 +124,11 @@ class PlainRenderer(Renderer):
                 self._writeln(f"{self._safe(label)}: {self._safe(url)}")
 
     def render_info(self, report: InfoReport) -> None:
-        """Render package info report with optional sections."""
+        """Render package info report with package overview and version details."""
         info = report.info
         self._render_info_base(report)
 
-        # -- Versions section -----------------------------------------------
+        # -- Versions section (package-level) -------------------------------
         if report.versions is not None:
             self._writeln()
             self.render_versions(
@@ -141,18 +139,34 @@ class PlainRenderer(Renderer):
                 else len(report.versions),
             )
 
-        # -- Vulnerabilities section ----------------------------------------
+        # -- Version details section ----------------------------------------
+        # Labeled separator — visually distinct from key-value lines so
+        # readers can tell it scopes everything below, not just the next line.
+        version = report.target_version or str(info.latest_version)
+        is_latest = version == str(info.latest_version)
+        header = f"Version {self._safe(version)}"
+        if is_latest:
+            header += " (latest)"
+        self._writeln()
+        self._writeln(f"--- {header} ---")
+
+        if info.requires_python is not None:
+            self._writeln(f"Python: {self._safe(info.requires_python)}")
+
+        if report.target_version_yanked:
+            msg = f"WARNING: Version {self._safe(version)} has been yanked"
+            if report.target_version_yanked_reason:
+                msg += f": {self._safe(report.target_version_yanked_reason)}"
+            self._writeln(msg)
+
         if report.vulnerabilities is not None:
             self._writeln()
             self.render_vulns(report.vulnerabilities)
 
-        # -- Dependencies section -------------------------------------------
         if report.metadata is not None:
             self._writeln()
-            version = report.target_version or str(info.latest_version)
             self.render_deps(info.name, version, report.metadata)
 
-        # -- Errors section -------------------------------------------------
         if report.errors:
             self._writeln()
             for section, message in report.errors.items():

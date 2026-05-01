@@ -16,6 +16,7 @@ from packaging.version import Version
 from peeq.models import (
     CvssSeverity,
     DistType,
+    InfoReport,
     VersionInfo,
     VulnerabilityInfo,
 )
@@ -29,6 +30,7 @@ from tests.test_output._helpers import (
     _info_report,
     _ls_entry,
     _metadata,
+    _pkg_info,
     _report,
     _solver_result,
     _vuln,
@@ -139,7 +141,7 @@ class TestRenderInfo:
     """Test package info rendering."""
 
     def test_basic(self) -> None:
-        """Render package info as key-value lines."""
+        """Render package info as key-value lines with version section."""
         r, s = _renderer()
         r.render_info(_info_report())
         out = s.getvalue()
@@ -147,6 +149,8 @@ class TestRenderInfo:
         assert "Latest Version: 2.31.0" in out
         assert "Versions: 142" in out
         assert "Registry: pypi.org" in out
+        # Version section always present
+        assert "--- Version 2.31.0 (latest) ---" in out
 
     def test_with_summary(self) -> None:
         """Summary is included in output."""
@@ -159,6 +163,75 @@ class TestRenderInfo:
         r, s = _renderer()
         r.render_info(_info_report(summary=None))
         assert "Summary:" not in s.getvalue()
+
+    def test_requires_python_in_version_section(self) -> None:
+        """requires_python appears in the version section, not base info."""
+        r, s = _renderer()
+        r.render_info(_info_report(requires_python=">=3.8"))
+        out = s.getvalue()
+        # Python line should appear after the version header
+        version_header_pos = out.index("--- Version 2.31.0 (latest) ---")
+        python_pos = out.index("Python: >=3.8")
+        assert python_pos > version_header_pos
+
+    def test_version_section_non_latest(self) -> None:
+        """Version section header omits '(latest)' for non-latest."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.28.0",
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert "--- Version 2.28.0 ---" in out
+        assert "(latest)" not in out.split("--- Version 2.28.0 ---")[1]
+
+    def test_yanked_warning(self) -> None:
+        """Yanked warning appears in version section."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.30.0",
+            target_version_yanked=True,
+            target_version_yanked_reason="Security issue",
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert "WARNING: Version 2.30.0 has been yanked: Security issue" in out
+        # Warning appears after version header
+        assert out.index("--- Version 2.30.0 ---") < out.index("WARNING:")
+
+    def test_yanked_warning_no_reason(self) -> None:
+        """Yanked warning without reason has no trailing colon."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.30.0",
+            target_version_yanked=True,
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert "WARNING: Version 2.30.0 has been yanked" in out
+        assert "has been yanked:" not in out
+
+    def test_no_yanked_warning_when_not_yanked(self) -> None:
+        """No warning appears when version is not yanked."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.31.0",
+            target_version_yanked=False,
+        )
+        r.render_info(report)
+        assert "WARNING" not in s.getvalue()
+        assert "yanked" not in s.getvalue()
+
+    def test_no_yanked_warning_when_unchecked(self) -> None:
+        """No warning appears when yanked status is None (unchecked)."""
+        r, s = _renderer()
+        r.render_info(_info_report())
+        assert "WARNING" not in s.getvalue()
+        assert "yanked" not in s.getvalue()
 
 
 # ---------------------------------------------------------------------------

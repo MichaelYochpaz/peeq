@@ -17,6 +17,7 @@ from rich.console import Console, Group
 from rich.markup import escape as rich_escape
 from rich.padding import Padding
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
@@ -192,10 +193,6 @@ class RichRenderer(Renderer):
         lines.append(f"[bold]Versions:[/bold]       {info.version_count}")
         if info.license is not None:
             lines.append(f"[bold]License:[/bold]        {rich_escape(info.license)}")
-        if info.requires_python is not None:
-            lines.append(
-                f"[bold]Python:[/bold]         {rich_escape(info.requires_python)}"
-            )
         if info.author is not None:
             lines.append(f"[bold]Author:[/bold]         {rich_escape(info.author)}")
         lines.append(f"[bold]Registry:[/bold]       {info.registry}")
@@ -366,17 +363,20 @@ class RichRenderer(Renderer):
         return lines
 
     def render_info(self, report: InfoReport) -> None:
-        """Render package info report as a single unified panel."""
+        """Render package info report as a single unified panel.
+
+        Output is split into a package-overview section and a
+        version-details section separated by a `Rule`.
+        """
         info = report.info
 
         # Collect all renderables (strings and Rich objects) for the panel
-        renderables: list[str | Table] = []
+        renderables: list[str | Table | Rule] = []
 
-        # -- Base info lines ------------------------------------------------
+        # -- Package overview -----------------------------------------------
         base_lines = self._build_info_base_lines(report)
         renderables.append("\n".join(base_lines))
 
-        # -- Versions section -----------------------------------------------
         if report.versions is not None:
             version_lines = self._build_versions_grid(
                 report.versions, report.versions_total
@@ -386,20 +386,36 @@ class RichRenderer(Renderer):
                 renderables.append("[bold]Versions:[/bold]")
                 renderables.append("\n".join(version_lines))
 
-        # -- Vulnerabilities section ----------------------------------------
+        # -- Version details ------------------------------------------------
+        version = report.target_version or str(info.latest_version)
+        is_latest = version == str(info.latest_version)
+        label = f"Version {rich_escape(version)}"
+        if is_latest:
+            label += " (latest)"
+        renderables.append("")
+        renderables.append(Rule(label, style="dim"))
+
+        if info.requires_python is not None:
+            renderables.append(
+                f"[bold]Python:[/bold] {rich_escape(info.requires_python)}"
+            )
+
+        if report.target_version_yanked:
+            msg = f"Version {rich_escape(version)} has been yanked"
+            if report.target_version_yanked_reason:
+                msg += f": {rich_escape(report.target_version_yanked_reason)}"
+            renderables.append(f"[error]{msg}[/error]")
+
         if report.vulnerabilities is not None:
             vuln_parts = self._build_vulns_section(report.vulnerabilities)
             renderables.append("")
             renderables.extend(vuln_parts)
 
-        # -- Dependencies section -------------------------------------------
         if report.metadata is not None:
-            version = report.target_version or str(info.latest_version)
             dep_lines = self._build_deps_section(info.name, version, report.metadata)
             renderables.append("")
             renderables.append("\n".join(dep_lines))
 
-        # -- Errors section -------------------------------------------------
         if report.errors:
             renderables.append("")
             for section, message in report.errors.items():

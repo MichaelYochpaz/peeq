@@ -15,6 +15,7 @@ from packaging.version import Version
 from peeq.models import (
     CvssSeverity,
     DistType,
+    InfoReport,
     VersionInfo,
     VulnerabilityInfo,
     VulnerabilityReference,
@@ -33,6 +34,7 @@ from tests.test_output._helpers import (
     _info_report,
     _ls_entry,
     _metadata,
+    _pkg_info,
     _report,
     _solver_result,
     _vuln,
@@ -70,6 +72,42 @@ class TestRenderInfo:
         r.render_info(_info_report(summary=None))
         data = _parse(s)
         assert "summary" not in data["info"]
+
+    def test_yanked_fields_present(self) -> None:
+        """Yanked fields appear in JSON when version is yanked."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.30.0",
+            target_version_yanked=True,
+            target_version_yanked_reason="Security issue",
+        )
+        r.render_info(report)
+        data = _parse(s)
+        assert data["target_version"] == "2.30.0"
+        assert data["target_version_yanked"] is True
+        assert data["target_version_yanked_reason"] == "Security issue"
+
+    def test_yanked_false_included(self) -> None:
+        """Checked-but-not-yanked emits false (not omitted)."""
+        r, s = _renderer()
+        report = InfoReport(
+            info=_pkg_info(),
+            target_version="2.31.0",
+            target_version_yanked=False,
+        )
+        r.render_info(report)
+        data = _parse(s)
+        assert data["target_version_yanked"] is False
+        assert "target_version_yanked_reason" not in data
+
+    def test_yanked_unchecked_omitted(self) -> None:
+        """Unchecked yanked status (None) is omitted from JSON."""
+        r, s = _renderer()
+        r.render_info(_info_report())
+        data = _parse(s)
+        assert "target_version_yanked" not in data
+        assert "target_version_yanked_reason" not in data
 
 
 # ---------------------------------------------------------------------------

@@ -180,8 +180,6 @@ class AgentRenderer(Renderer):
         self._writeln(f"Versions: {info.version_count}")
         if info.license is not None:
             self._writeln(f"License: {escape_xml(info.license)}")
-        if info.requires_python is not None:
-            self._writeln(f"Python: {escape_xml_specifier(info.requires_python)}")
         if info.author is not None:
             self._writeln(f"Author: {escape_xml(info.author)}")
         self._writeln(f"Registry: {info.registry}")
@@ -227,20 +225,42 @@ class AgentRenderer(Renderer):
         self._writeln("</vulnerabilities>")
 
     def render_info(self, report: InfoReport) -> None:
-        """Render package info report as a single `<package-info>` block.
+        """Render package info report as a `<package-info>` block.
 
-        All optional sections (versions, vulnerabilities, dependencies)
-        are nested inside the outer tag.  The `package` and `version`
-        attributes appear only on the top-level tag — inner section tags
-        carry only section-specific metadata (e.g. `count`, `showing`).
+        Output is split into a package-overview area and a nested
+        `<version-details>` element that groups all version-specific
+        data (requires-python, yanked status, vulnerabilities,
+        dependencies, errors).
         """
         version = report.target_version or str(report.info.latest_version)
         self._write_data_open()
-        self._writeln(
-            f"<package-info name={escape_xml_attr(report.info.name)} version={escape_xml_attr(version)}>"
-        )
+        self._writeln(f"<package-info name={escape_xml_attr(report.info.name)}>")
+
+        # -- Package overview -----------------------------------------------
         self._write_info_base(report)
         self._write_info_versions(report)
+
+        # -- Version details ------------------------------------------------
+        yanked_attrs = ""
+        if report.target_version_yanked:
+            yanked_attrs = ' yanked="true"'
+            if report.target_version_yanked_reason:
+                yanked_attrs += f" yanked-reason={escape_xml_attr(report.target_version_yanked_reason)}"
+        self._writeln(
+            f"\n<version-details version={escape_xml_attr(version)}{yanked_attrs}>"
+        )
+
+        if report.info.requires_python is not None:
+            self._writeln(
+                f"Python: {escape_xml_specifier(report.info.requires_python)}"
+            )
+
+        if report.target_version_yanked:
+            msg = f"WARNING: Version {escape_xml(version)} has been yanked"
+            if report.target_version_yanked_reason:
+                msg += f": {escape_xml(report.target_version_yanked_reason)}"
+            self._writeln(msg)
+
         self._write_info_vulns(report)
 
         if report.metadata is not None:
@@ -260,6 +280,7 @@ class AgentRenderer(Renderer):
                 self._writeln(f"Error ({escape_xml(section)}): {escape_xml(message)}")
             self._writeln("</errors>")
 
+        self._writeln("</version-details>")
         self._writeln("</package-info>")
         self._write_data_close()
 

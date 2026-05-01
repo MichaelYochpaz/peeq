@@ -464,7 +464,7 @@ class InfoReport(BaseModel):
     """Base package information (always present)."""
 
     target_version: str | None = None
-    """Version targeted by `--version` for deps/vulns sections."""
+    """Resolved version this report targets (explicit `--version` or latest)."""
 
     versions: list[VersionInfo] | None = None
     """Version list (populated when `--versions` or `--full` is set)."""
@@ -477,6 +477,15 @@ class InfoReport(BaseModel):
 
     metadata: PackageMetadata | None = None
     """Package metadata with dependencies (populated when `--deps` or `--full` is set)."""
+
+    target_version_yanked: bool | None = None
+    """Whether the targeted version has been yanked (PEP 592).
+
+    `None` means yanked status was not checked (no version data fetched).
+    """
+
+    target_version_yanked_reason: str | None = None
+    """Maintainer-provided yank reason, if any."""
 
     errors: dict[str, str] | None = None
     """Per-section error messages for partial failures (section name → message)."""
