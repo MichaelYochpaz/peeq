@@ -16,7 +16,14 @@ import sys
 from typing import TYPE_CHECKING
 
 from peeq import APP_NAME
-from peeq.output.base import LsEntry, Renderer, format_size, try_decode
+from peeq.output.base import (
+    LsEntry,
+    Renderer,
+    build_vulnerability_recommendation,
+    format_size,
+    format_unfixed_vulnerability_note,
+    try_decode,
+)
 from peeq.sanitize import escape_xml, escape_xml_attr, escape_xml_specifier
 from peeq.utils import group_dependencies
 
@@ -57,8 +64,10 @@ def _format_dep_bullet(dep: Dependency) -> str:
 def _write_deps_body(writeln: Callable[[str], None], metadata: PackageMetadata) -> None:
     """Write dependency list body (shared by render_info and render_deps).
 
-    Source provenance is emitted as XML attributes on the opening tag
-    by the caller, not as body content.
+    Groups are wrapped in `<required>` and `<optional extra="...">`
+    tags with per-group `count` attributes.  Source provenance is
+    emitted as XML attributes on the opening `<dependencies>` tag by
+    the caller, not as body content.
     """
     if metadata.dependencies is None:
         writeln("Dependencies: unknown (Requires-Dist marked as Dynamic)")
@@ -74,13 +83,17 @@ def _write_deps_body(writeln: Callable[[str], None], metadata: PackageMetadata) 
 
     required, optional = group_dependencies(metadata.dependencies)
 
-    for dep in required:
-        writeln(_format_dep_bullet(dep))
+    if required:
+        writeln(f'<required count="{len(required)}">')
+        for dep in required:
+            writeln(_format_dep_bullet(dep))
+        writeln("</required>")
 
     for extra_name, deps in sorted(optional.items()):
-        writeln(f"\nOptional [{escape_xml(extra_name)}]:")
+        writeln(f'<optional extra={escape_xml_attr(extra_name)} count="{len(deps)}">')
         for dep in deps:
             writeln(_format_dep_bullet(dep))
+        writeln("</optional>")
 
 
 def _deps_source_attrs(metadata: PackageMetadata) -> str:
@@ -144,6 +157,20 @@ class AgentRenderer(Renderer):
     def _writeln(self, text: str = "") -> None:
         """Write a line of text with a trailing newline."""
         self._stream.write(text + "\n")
+
+    def _write_vuln_guidance(self, vulnerabilities: list[VulnerabilityInfo]) -> None:
+        """Write upgrade guidance for vulnerability sections."""
+        recommendation = build_vulnerability_recommendation(vulnerabilities)
+        if recommendation is None:
+            return
+
+        self._writeln()
+        self._writeln(f"Suggested upgrade: >= {escape_xml(recommendation.version)}")
+        if recommendation.unresolved_count:
+            self._writeln(
+                "Note: "
+                f"{escape_xml(format_unfixed_vulnerability_note(recommendation.unresolved_count))}"
+            )
 
     def _write_data_open(self) -> None:
         """Write the opening data-boundary comment.
@@ -217,11 +244,7 @@ class AgentRenderer(Renderer):
         else:
             for vuln in vulns:
                 self._writeln(_format_vuln_bullet(vuln))
-            all_fixed = sorted({v for vuln in vulns for v in vuln.fixed_versions})
-            if all_fixed:
-                self._writeln(
-                    f"\nRecommendation: Upgrade to >= {escape_xml(all_fixed[-1])}"
-                )
+            self._write_vuln_guidance(vulns)
         self._writeln("</vulnerabilities>")
 
     def render_info(self, report: InfoReport) -> None:
@@ -781,14 +804,7 @@ class AgentRenderer(Renderer):
             for vuln in report.vulnerabilities:
                 self._writeln(_format_vuln_bullet(vuln))
 
-            all_fixed = sorted(
-                {v for vuln in report.vulnerabilities for v in vuln.fixed_versions}
-            )
-            if all_fixed:
-                self._writeln()
-                self._writeln(
-                    f"Recommendation: Upgrade to >= {escape_xml(all_fixed[-1])}"
-                )
+            self._write_vuln_guidance(report.vulnerabilities)
 
         self._writeln("</vulnerabilities>")
         self._write_data_close()

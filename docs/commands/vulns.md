@@ -34,7 +34,7 @@ Each vulnerability in the report includes:
 - **Summary** — a brief description of the vulnerability.
 - **Fixed in** — the version(s) where the vulnerability was patched.
 
-When vulnerabilities are found, peeq shows a recommendation with the minimum version that fixes all reported issues.
+When vulnerabilities are found, peeq shows a suggested upgrade version that fixes all reported issues.
 
 !!! info "Caching"
 
@@ -52,7 +52,6 @@ The OSV API is free and has no rate limits.
 ```
 $ peeq vulns requests
 Vulnerabilities for requests 2.33.1:
-
 No known vulnerabilities.
 ```
 
@@ -80,7 +79,7 @@ Severity: MODERATE
 Summary: Requests has Insecure Temp File Reuse in its extract_zipped_paths() utility function
 Fixed in: 2.33.0
 
-Recommendation: Upgrade to >= 2.33.0
+Suggested upgrade: >= 2.33.0
 ```
 
 ## See also

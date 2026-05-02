@@ -15,7 +15,14 @@ import sys
 from typing import TYPE_CHECKING
 
 from peeq import APP_NAME
-from peeq.output.base import LsEntry, Renderer, format_size, try_decode
+from peeq.output.base import (
+    LsEntry,
+    Renderer,
+    build_vulnerability_recommendation,
+    format_size,
+    format_unfixed_vulnerability_note,
+    try_decode,
+)
 from peeq.sanitize import strip_control_chars
 from peeq.utils import group_dependencies
 
@@ -620,12 +627,12 @@ class PlainRenderer(Renderer):
         self._writeln(
             f"Vulnerabilities for {self._safe(report.package)} {self._safe(report.version)}:"
         )
-        self._writeln()
 
         if not report.vulnerabilities:
             self._writeln("No known vulnerabilities.")
             return
 
+        self._writeln()
         for vuln in report.vulnerabilities:
             self._writeln(f"ID: {self._safe(vuln.id)}")
             cves = [a for a in vuln.aliases if a.startswith("CVE-")]
@@ -646,11 +653,14 @@ class PlainRenderer(Renderer):
                 )
             self._writeln()
 
-        all_fixed = sorted(
-            {v for vuln in report.vulnerabilities for v in vuln.fixed_versions}
-        )
-        if all_fixed:
-            self._writeln(f"Recommendation: Upgrade to >= {self._safe(all_fixed[-1])}")
+        recommendation = build_vulnerability_recommendation(report.vulnerabilities)
+        if recommendation is not None:
+            self._writeln(f"Suggested upgrade: >= {self._safe(recommendation.version)}")
+            if recommendation.unresolved_count:
+                self._writeln(
+                    "Note: "
+                    f"{format_unfixed_vulnerability_note(recommendation.unresolved_count)}"
+                )
 
     # -- Errors -------------------------------------------------------------
 

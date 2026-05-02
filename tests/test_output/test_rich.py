@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from packaging.version import Version
+from rich.table import Table
 
 from peeq.models import (
     CvssSeverity,
@@ -21,6 +22,7 @@ from peeq.models import (
     VulnerabilityInfo,
     VulnerabilityReport,
 )
+from peeq.output.rich import RichRenderer
 from tests.test_output._helpers import (
     _cache_stats,
     _conflict,
@@ -166,13 +168,14 @@ class TestRenderInfo:
             fixed_versions=["2.32.0"],
             severity_label="HIGH",
         )
+        vulns_report = VulnerabilityReport(
+            package="requests",
+            version="2.31.0",
+            vulnerabilities=[vuln],
+        )
         report = InfoReport(
             info=_pkg_info(),
-            vulnerabilities=VulnerabilityReport(
-                package="requests",
-                version="2.31.0",
-                vulnerabilities=[vuln],
-            ),
+            vulnerabilities=vulns_report,
         )
         r.render_info(report)
         out = s.getvalue()
@@ -180,6 +183,10 @@ class TestRenderInfo:
         assert "CVE-2024-0001" in out
         assert "Test vuln" in out
         assert "2.32.0" in out
+
+        parts = r._build_vulns_section(vulns_report)
+        vuln_table = next(part for part in parts if isinstance(part, Table))
+        assert vuln_table.show_edge is True
 
     def test_unified_panel_with_deps(self) -> None:
         """Dependencies render inside the unified panel."""
@@ -398,6 +405,62 @@ class TestRenderVersions:
         r.render_versions("pkg", versions, total=1)
         assert "2025-06-15" in s.getvalue()
 
+    def test_mixed_length_versions_aligned(self) -> None:
+        """Version cells are padded so dates align across rows.
+
+        Regression test: .dev / .post / long pre-release suffixes used
+        to break manual string-padding alignment.
+        """
+        versions = [
+            VersionInfo(
+                version=Version("1.84.0.dev2"),
+                release_date=datetime(2026, 5, 1, tzinfo=timezone.utc),
+            ),
+            VersionInfo(
+                version=Version("1.83.14"),
+                release_date=datetime(2026, 4, 26, tzinfo=timezone.utc),
+            ),
+            VersionInfo(
+                version=Version("1.83.9"),
+                release_date=datetime(2026, 4, 17, tzinfo=timezone.utc),
+            ),
+        ]
+        cells = RichRenderer._build_versions_cells(versions)
+        # All cells should have the same plain-text width
+        widths = [len(cell.plain) for cell in cells]
+        assert len(set(widths)) == 1, f"Cell widths differ: {widths}"
+
+    def test_grid_reduces_columns_on_narrow_terminal(self) -> None:
+        """Grid uses fewer columns when they wouldn't fit."""
+        versions = [
+            VersionInfo(
+                version=Version("1.84.0.dev2"),
+                release_date=datetime(2026, 5, 1, tzinfo=timezone.utc),
+            ),
+            VersionInfo(
+                version=Version("1.83.14"),
+                release_date=datetime(2026, 4, 26, tzinfo=timezone.utc),
+            ),
+            VersionInfo(
+                version=Version("1.83.9"),
+                release_date=datetime(2026, 4, 17, tzinfo=timezone.utc),
+            ),
+        ]
+        cells = RichRenderer._build_versions_cells(versions)
+        cell_width = len(cells[0].plain)  # 24 chars for dev versions
+
+        # Wide terminal: 3 columns fit
+        wide_grid = RichRenderer._layout_text_grid(
+            cells, available_width=cell_width * 3 + 6
+        )
+        assert wide_grid.row_count == 1
+
+        # Narrow terminal: only 2 columns fit
+        narrow_grid = RichRenderer._layout_text_grid(
+            cells, available_width=cell_width * 2 + 3
+        )
+        assert narrow_grid.row_count == 2
+
 
 # ---------------------------------------------------------------------------
 # Tests: render_deps
@@ -457,6 +520,50 @@ class TestRenderDeps:
         out = s.getvalue()
         assert "socks" in out
         assert "pysocks" in out
+
+    def test_dependency_groups_show_counts(self) -> None:
+        """Dependency groups include item counts and omit list bullets."""
+        r, s = _renderer()
+        meta = _metadata(
+            dependencies=[
+                _dep("httpx", "==0.28.1"),
+                _dep("openai", "==2.24.0"),
+                _dep("gunicorn", "==23.0.0", markers='extra == "proxy"'),
+                _dep("uvicorn", "==0.33.0", markers='extra == "proxy"'),
+            ],
+        )
+        r.render_deps("pkg", "1.0.0", meta)
+        out = s.getvalue()
+        assert "Required (2):" in out
+        assert "Optional [proxy] (2):" in out
+        assert "httpx==0.28.1" in out
+        # Blank line separates Required from Optional groups.
+        assert "\n\nOptional [proxy]" in out
+        assert "  - httpx" not in out
+
+    def test_dependency_grid_reduces_columns_for_long_items(self) -> None:
+        """Dependency grids adapt to long dependency cells."""
+        deps = [
+            _dep("azure-storage-file-datalake", "==12.20.0"),
+            _dep("opentelemetry-exporter-otlp", "==1.28.0"),
+            _dep("google-cloud-aiplatform", "==1.133.0"),
+        ]
+        cells = RichRenderer._build_dependency_cells(deps)
+        cell_width = max(len(cell.plain) for cell in cells)
+
+        wide_grid = RichRenderer._layout_text_grid(
+            cells,
+            available_width=cell_width * 3 + 6,
+            max_columns=4,
+        )
+        assert wide_grid.row_count == 1
+
+        narrow_grid = RichRenderer._layout_text_grid(
+            cells,
+            available_width=cell_width * 2 + 3,
+            max_columns=4,
+        )
+        assert narrow_grid.row_count == 2
 
     def test_source_provenance(self) -> None:
         """Source info appears when available."""
@@ -853,14 +960,24 @@ class TestRenderVulns:
         r, s = _renderer()
         r.render_vulns(_report(vulns=[v]))
         assert "3.0.0" in s.getvalue()
-        assert "Recommendation" in s.getvalue()
+        assert "Suggested upgrade" in s.getvalue()
+
+    def test_recommendation_notes_unfixed_advisories(self) -> None:
+        """Call out advisories that do not list a fixed version."""
+        fixed = _vuln(vuln_id="GHSA-fixed", fixed_versions=["3.0.0"])
+        unfixed = _vuln(vuln_id="GHSA-unfixed", fixed_versions=[])
+        r, s = _renderer()
+        r.render_vulns(_report(vulns=[fixed, unfixed]))
+        out = s.getvalue()
+        assert "Suggested upgrade" in out
+        assert "1 advisory has no fixed version listed." in out
 
     def test_no_recommendation_without_fixes(self) -> None:
         """No recommendation when no fixed versions exist."""
         v = _vuln(fixed_versions=[])
         r, s = _renderer()
         r.render_vulns(_report(vulns=[v]))
-        assert "Recommendation" not in s.getvalue()
+        assert "Suggested upgrade" not in s.getvalue()
 
     def test_header_includes_count(self) -> None:
         """Header shows vulnerability count."""

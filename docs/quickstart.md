@@ -14,10 +14,12 @@ Summary: Python HTTP for Humans.
 Latest Version: 2.33.1 (2026-03-30)
 Versions: 156
 License: Apache-2.0
-Python: >=3.10
 Registry: pypi.org
 Documentation: https://requests.readthedocs.io
 Source: https://github.com/psf/requests
+
+--- Version 2.33.1 (latest) ---
+Python: >=3.10
 ```
 
 The `info` command shows package metadata from the registry.
@@ -34,11 +36,11 @@ Use `peeq versions` to see available releases:
 ```
 $ peeq versions requests --limit 5
 requests versions (showing 5 of 156):
-  - 2.33.1 (latest)
-  - 2.33.0
-  - 2.32.5
-  - 2.32.4
-  - 2.32.3
+  - 2.33.1 (2026-03-30) (latest)
+  - 2.33.0 (2026-03-25)
+  - 2.32.5 (2025-08-18)
+  - 2.32.4 (2025-06-09)
+  - 2.32.3 (2024-05-29)
 ```
 
 Filter versions with PEP 440 specifiers using `--matching`:
@@ -109,7 +111,6 @@ Use `peeq vulns` to query the [OSV database](https://osv.dev) for known vulnerab
 ```
 $ peeq vulns requests
 Vulnerabilities for requests 2.33.1:
-
 No known vulnerabilities.
 ```
 

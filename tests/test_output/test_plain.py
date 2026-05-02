@@ -711,14 +711,32 @@ class TestRenderVulns:
         v = _vuln(fixed_versions=["3.0.0"])
         r, s = _renderer()
         r.render_vulns(_report(vulns=[v]))
-        assert "Recommendation: Upgrade to >= 3.0.0" in s.getvalue()
+        assert "Suggested upgrade: >= 3.0.0" in s.getvalue()
+
+    def test_recommendation_uses_version_sorting(self) -> None:
+        """Choose the highest fixed version using Python version ordering."""
+        older = _vuln(vuln_id="GHSA-old", fixed_versions=["1.9.0"])
+        newer = _vuln(vuln_id="GHSA-new", fixed_versions=["1.10.0"])
+        r, s = _renderer()
+        r.render_vulns(_report(vulns=[older, newer]))
+        assert "Suggested upgrade: >= 1.10.0" in s.getvalue()
+
+    def test_recommendation_notes_unfixed_advisories(self) -> None:
+        """Call out advisories that do not list a fixed version."""
+        fixed = _vuln(vuln_id="GHSA-fixed", fixed_versions=["3.0.0"])
+        unfixed = _vuln(vuln_id="GHSA-unfixed", fixed_versions=[])
+        r, s = _renderer()
+        r.render_vulns(_report(vulns=[fixed, unfixed]))
+        out = s.getvalue()
+        assert "Suggested upgrade: >= 3.0.0" in out
+        assert "Note: 1 advisory has no fixed version listed." in out
 
     def test_no_recommendation_without_fixes(self) -> None:
         """No recommendation when no fixed versions exist."""
         v = _vuln(fixed_versions=[])
         r, s = _renderer()
         r.render_vulns(_report(vulns=[v]))
-        assert "Recommendation" not in s.getvalue()
+        assert "Suggested upgrade" not in s.getvalue()
 
     def test_cvss_type_fallback(self) -> None:
         """Fall back to CVSS type when no severity label."""

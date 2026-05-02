@@ -23,7 +23,7 @@ peeq info <package> [options]
 | `--deps` | flag | off | Include dependency list. |
 | `--full` | flag | off | Include all optional sections (versions, vulnerabilities, dependencies). |
 | `--version` | string | latest | Target version for the `--deps` and `--vulns` sections. |
-| `--limit` | integer | `20` | Maximum number of versions to show. |
+| `--limit` | integer | `40` | Maximum number of versions to show. |
 
 ### Option interaction rules
 
@@ -44,10 +44,12 @@ Summary: Python HTTP for Humans.
 Latest Version: 2.33.1 (2026-03-30)
 Versions: 156
 License: Apache-2.0
-Python: >=3.10
 Registry: pypi.org
 Documentation: https://requests.readthedocs.io
 Source: https://github.com/psf/requests
+
+--- Version 2.33.1 (latest) ---
+Python: >=3.10
 ```
 
 ### Include version history
@@ -59,17 +61,19 @@ Summary: Python HTTP for Humans.
 Latest Version: 2.33.1 (2026-03-30)
 Versions: 156
 License: Apache-2.0
-Python: >=3.10
 Registry: pypi.org
 Documentation: https://requests.readthedocs.io
 Source: https://github.com/psf/requests
 
 requests versions (showing 5 of 156):
-  - 2.33.1 (latest)
-  - 2.33.0
-  - 2.32.5
-  - 2.32.4
-  - 2.32.3
+  - 2.33.1 (2026-03-30) (latest)
+  - 2.33.0 (2026-03-25)
+  - 2.32.5 (2025-08-18)
+  - 2.32.4 (2025-06-09)
+  - 2.32.3 (2024-05-29)
+
+--- Version 2.33.1 (latest) ---
+Python: >=3.10
 ```
 
 ### Vulnerability scan for a specific version
@@ -81,10 +85,12 @@ Summary: Python HTTP for Humans.
 Latest Version: 2.33.1 (2026-03-30)
 Versions: 156
 License: Apache-2.0
-Python: >=3.7
 Registry: pypi.org
 Documentation: https://requests.readthedocs.io
 Source: https://github.com/psf/requests
+
+--- Version 2.31.0 ---
+Python: >=3.7
 
 Vulnerabilities for requests 2.31.0:
 
@@ -106,7 +112,7 @@ Severity: MODERATE
 Summary: Requests has Insecure Temp File Reuse in its extract_zipped_paths() utility function
 Fixed in: 2.33.0
 
-Recommendation: Upgrade to >= 2.33.0
+Suggested upgrade: >= 2.33.0
 ```
 
 ### Full report

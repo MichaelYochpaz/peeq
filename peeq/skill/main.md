@@ -46,7 +46,7 @@ peeq info requests --full --version 2.31.0 --format agent
 - `--deps` — Include dependency list.
 - `--vulns` — Include vulnerability scan.
 - `--version` — Target version. Requires `--deps`, `--vulns`, or `--full`.
-- `--limit N` — Maximum versions to show (default 20). Requires `--versions` or `--full`.
+- `--limit N` — Maximum versions to show (default 40). Requires `--versions` or `--full`.
 
 ### Dependencies
 
@@ -61,6 +61,8 @@ peeq deps flask --version 2.3.0 --diff 3.0.0 --format agent
 - `--diff <v2>` — Compare dependencies between `--version` and this version. Requires `--version`.
 - `--tag` — Wheel tag for platform-specific metadata (e.g., `cp312-cp312-win_amd64`). Run `peeq artifacts` first to find available tags from wheel filenames.
 
+Agent output groups dependencies in `<required>` and `<optional>` tags inside `<dependencies>`. The `extra` attribute on `<optional>` maps to pip extras — `<optional extra="dev">` means `pip install package[dev]`. Each group tag includes a `count` attribute.
+
 ### Versions
 
 `peeq versions <package>` — List available versions.
@@ -70,7 +72,7 @@ peeq versions requests --matching ">=2.28,<3" --pre --format agent
 peeq versions requests --yanked --format agent
 ```
 
-- `--limit N` — Maximum versions to show (default 20).
+- `--limit N` — Maximum versions to show (default 40).
 - `--all` — Show all versions (no limit). Cannot combine with `--limit`.
 - `--matching <specifier>` — Version filter (e.g., `">=2.0,<3"`).
 - `--pre` — Include pre-releases. Requires `--matching`.

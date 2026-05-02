@@ -180,8 +180,10 @@ class TestRenderInfo:
         r.render_info(report)
         out = s.getvalue()
         assert '<dependencies count="2">' in out
+        assert '<required count="2">' in out
         assert "- urllib3 >=1.21" in out
         assert "- certifi >=2.0" in out
+        assert "</required>" in out
         assert "</dependencies>" in out
         # Deps nested inside version-details
         vd_start = out.index("<version-details")
@@ -429,8 +431,10 @@ class TestRenderDeps:
         assert _DATA_OPEN in out
         assert _DATA_CLOSE in out
         assert '<dependencies package="requests" version="2.31.0" count="2">' in out
-        assert "urllib3" in out
-        assert "certifi" in out
+        assert '<required count="2">' in out
+        assert "- urllib3 >=1.21" in out
+        assert "- certifi >=2.0" in out
+        assert "</required>" in out
         assert "</dependencies>" in out
 
     def test_with_tag(self) -> None:
@@ -464,7 +468,7 @@ class TestRenderDeps:
         assert "count=" not in out
 
     def test_optional_extras(self) -> None:
-        """Optional dependencies grouped by extra name."""
+        """Optional dependencies wrapped in `<optional extra="...">` tags."""
         r, s = _renderer()
         meta = _metadata(
             dependencies=[
@@ -474,7 +478,8 @@ class TestRenderDeps:
         )
         r.render_deps("httpx", "0.28.0", meta)
         out = s.getvalue()
-        assert "Optional [socks]:" in out
+        assert '<optional extra="socks" count="1">' in out
+        assert "</optional>" in out
         assert "pysocks" in out
 
     def test_source_provenance(self) -> None:
@@ -912,15 +917,25 @@ class TestRenderVulns:
         v = _vuln(fixed_versions=["3.0.0"])
         r, s = _renderer()
         r.render_vulns(_report(vulns=[v]))
-        assert "Recommendation:" in s.getvalue()
+        assert "Suggested upgrade:" in s.getvalue()
         assert "3.0.0" in s.getvalue()
+
+    def test_recommendation_notes_unfixed_advisories(self) -> None:
+        """Call out advisories that do not list a fixed version."""
+        fixed = _vuln(vuln_id="GHSA-fixed", fixed_versions=["3.0.0"])
+        unfixed = _vuln(vuln_id="GHSA-unfixed", fixed_versions=[])
+        r, s = _renderer()
+        r.render_vulns(_report(vulns=[fixed, unfixed]))
+        out = s.getvalue()
+        assert "Suggested upgrade:" in out
+        assert "Note: 1 advisory has no fixed version listed." in out
 
     def test_no_recommendation_without_fixes(self) -> None:
         """No recommendation when no fixed versions exist."""
         v = _vuln(fixed_versions=[])
         r, s = _renderer()
         r.render_vulns(_report(vulns=[v]))
-        assert "Recommendation:" not in s.getvalue()
+        assert "Suggested upgrade:" not in s.getvalue()
 
     def test_cvss_type_fallback(self) -> None:
         """Fall back to CVSS type when no severity label."""

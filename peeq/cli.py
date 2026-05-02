@@ -193,7 +193,7 @@ def _build_target_env(
     return TargetEnvironment.current()
 
 
-_DEFAULT_VERSION_LIMIT: int = 20
+_DEFAULT_VERSION_LIMIT: int = 40
 """Default maximum number of versions to show in `info` and `versions`."""
 
 _DEFAULT_LS_LIMIT: int = 50

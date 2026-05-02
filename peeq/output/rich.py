@@ -12,7 +12,6 @@ import posixpath
 import sys
 from typing import TYPE_CHECKING
 
-from rich.columns import Columns
 from rich.console import Console, Group
 from rich.markup import escape as rich_escape
 from rich.padding import Padding
@@ -25,7 +24,15 @@ from rich.theme import Theme
 from rich.tree import Tree
 
 from peeq import APP_NAME
-from peeq.output.base import LsEntry, Renderer, format_size, try_decode
+from peeq.output.base import (
+    LsEntry,
+    Renderer,
+    build_vulnerability_recommendation,
+    format_size,
+    format_unfixed_vulnerability_note,
+    normalize_specifier_order,
+    try_decode,
+)
 from peeq.utils import group_dependencies
 
 if TYPE_CHECKING:
@@ -34,6 +41,7 @@ if TYPE_CHECKING:
 
     from peeq.models import (
         CacheStats,
+        Dependency,
         DepsDiff,
         FileInfo,
         InfoReport,
@@ -86,6 +94,13 @@ def _guess_lexer(filename: str) -> str:
 # ---------------------------------------------------------------------------
 # Expected PRAGMA values for cache diagnostics
 # ---------------------------------------------------------------------------
+
+_MAX_GRID_COLUMNS = 3
+"""Default cap for compact grid columns (prevents wide-terminal sprawl)."""
+
+_MAX_DEPENDENCY_COLUMNS = 4
+"""Cap dependency grids lower than versions to keep requirements readable."""
+
 
 _EXPECTED_PRAGMAS: dict[str, tuple[object, str]] = {
     "journal_mode": ("wal", "WAL mode"),
@@ -162,6 +177,26 @@ def _format_severity_rich(vuln: VulnerabilityInfo) -> str:
     return "-"
 
 
+def _apply_vuln_table_caption(
+    table: Table, vulnerabilities: list[VulnerabilityInfo]
+) -> None:
+    """Set the table caption to upgrade guidance when fixed versions exist."""
+    recommendation = build_vulnerability_recommendation(vulnerabilities)
+    if recommendation is None:
+        return
+
+    lines = [
+        f"[bold]Suggested upgrade:[/bold] >= {rich_escape(recommendation.version)}"
+    ]
+    if recommendation.unresolved_count:
+        lines.append(
+            "[warning]Note:[/warning] "
+            f"{format_unfixed_vulnerability_note(recommendation.unresolved_count)}"
+        )
+    table.caption = "\n".join(lines)
+    table.caption_justify = "left"
+
+
 # ---------------------------------------------------------------------------
 # RichRenderer
 # ---------------------------------------------------------------------------
@@ -190,7 +225,7 @@ class RichRenderer(Renderer):
         if info.summary is not None:
             lines.append(f"[bold]Summary:[/bold]        {rich_escape(info.summary)}")
         lines.append(f"[bold]Latest Version:[/bold] {latest}")
-        lines.append(f"[bold]Versions:[/bold]       {info.version_count}")
+        lines.append(f"[bold]Version Count:[/bold]  {info.version_count}")
         if info.license is not None:
             lines.append(f"[bold]License:[/bold]        {rich_escape(info.license)}")
         if info.author is not None:
@@ -207,59 +242,102 @@ class RichRenderer(Renderer):
         return lines
 
     @staticmethod
-    def _build_versions_grid(
+    def _build_versions_cells(
         versions: list[VersionInfo],
-        versions_total: int | None,
         *,
-        columns: int = 3,
-    ) -> list[str]:
-        """Build a multi-column plain-text grid of versions.
+        all_yanked: bool = False,
+    ) -> list[Text]:
+        """Build styled `Text` cells for a version grid.
 
-        Each cell shows `version  date`.  Yanked versions use
-        strikethrough + dim markup.  Returns lines ready for Rich
-        markup rendering.
+        Each cell shows `version (date)`.  The version string is
+        padded to the widest entry so dates align across columns.
+        Yanked versions use strikethrough styling unless *all_yanked*
+        is set (the header conveys it instead).
         """
-        if not versions:
-            return []
-
-        # Determine fixed cell width from the longest version string
         max_ver_len = max(len(str(v.version)) for v in versions)
-        # "version  YYYY-MM-DD" — version padded + 2 spaces + 10-char date
-        cell_width = max_ver_len + 2 + 10
 
-        lines: list[str] = []
-        row_cells: list[str] = []
+        cells: list[Text] = []
         for v in versions:
             ver_str = str(v.version)
-            date_str = f"{v.release_date:%Y-%m-%d}" if v.release_date else " " * 10
-            safe_ver = rich_escape(ver_str)
-            # Pad based on original length for correct visual alignment
-            padded_ver = safe_ver + " " * max(0, max_ver_len - len(ver_str))
+            padded = ver_str.ljust(max_ver_len)
+            use_strike = v.yanked and not all_yanked
 
-            if v.yanked:
-                cell = f"[dim strike]{padded_ver}  {date_str}[/dim strike]"
+            if v.release_date:
+                date_str = f"{v.release_date:%Y-%m-%d}"
+                if use_strike:
+                    cells.append(Text(f"{padded} ({date_str})", style="dim strike"))
+                else:
+                    cells.append(
+                        Text.assemble(
+                            (padded, "version"),
+                            (" (", "dim"),
+                            (date_str, "dim"),
+                            (")", "dim"),
+                        )
+                    )
             else:
-                cell = f"[version]{padded_ver}[/version]  [dim]{date_str}[/dim]"
+                style = "dim strike" if use_strike else "version"
+                cells.append(Text(padded, style=style))
 
-            # Pad the visible content to cell_width for alignment
-            # Rich markup is invisible, so pad the raw text
-            visible_len = len(ver_str) + 2 + len(date_str)
-            padding = " " * max(0, cell_width - visible_len)
-            row_cells.append(cell + padding)
+        return cells
 
-            if len(row_cells) == columns:
-                lines.append("  " + "   ".join(row_cells))
-                row_cells = []
+    @staticmethod
+    def _layout_text_grid(
+        cells: list[Text],
+        *,
+        available_width: int,
+        max_columns: int = _MAX_GRID_COLUMNS,
+    ) -> Table:
+        """Lay out text cells in a column-capped grid.
 
-        if row_cells:
-            lines.append("  " + "   ".join(row_cells))
+        Uses `Table.grid()` with the column count adapted to
+        *available_width* (prevents truncation on narrow terminals)
+        and capped at *max_columns* (prevents sprawl on wide ones).
+        """
+        available_width = max(1, available_width)
+        cell_width = max(len(cell.plain) for cell in cells)
+        col_gap = 3
+        # n columns need: n * cell_width + (n-1) * col_gap chars
+        max_fit = max(1, (available_width + col_gap) // (cell_width + col_gap))
+        n_cols = min(len(cells), max_columns, max_fit)
 
-        if versions_total is not None and versions_total != len(versions):
-            lines.append(
-                f"  [dim]Showing {len(versions)} of {versions_total} versions[/dim]"
-            )
+        grid = Table.grid(padding=(0, col_gap), pad_edge=False)
+        no_wrap = cell_width <= available_width
+        for _ in range(n_cols):
+            grid.add_column(no_wrap=no_wrap)
 
-        return lines
+        for i in range(0, len(cells), n_cols):
+            row = list(cells[i : i + n_cols])
+            # Pad incomplete last row so add_row gets the right arg count
+            row.extend(Text("") for _ in range(n_cols - len(row)))
+            grid.add_row(*row)
+
+        return grid
+
+    @staticmethod
+    def _dependency_name(dep: Dependency) -> str:
+        """Format a dependency name with requested extras."""
+        if not dep.extras:
+            return dep.name
+        extras = ",".join(dep.extras)
+        return f"{dep.name}[{extras}]"
+
+    @classmethod
+    def _build_dependency_cells(cls, deps: list[Dependency]) -> list[Text]:
+        """Build styled `Text` cells for a dependency grid."""
+        cells: list[Text] = []
+        for dep in deps:
+            name = cls._dependency_name(dep)
+            if dep.specifier:
+                cells.append(
+                    Text.assemble(
+                        (name, ""),
+                        (dep.specifier, "specifier"),
+                    )
+                )
+            else:
+                cells.append(Text(name))
+        return cells
 
     def _build_vulns_section(
         self,
@@ -280,7 +358,7 @@ class RichRenderer(Renderer):
         count = len(report.vulnerabilities)
         parts.append(f"[bold]{header} ({count} found):[/bold]")
 
-        table = Table(show_edge=False, pad_edge=False, expand=False, show_lines=True)
+        table = Table(expand=False, show_lines=True, border_style="dim")
         table.add_column("ID", style="bold")
         table.add_column("CVE")
         table.add_column("Severity")
@@ -296,71 +374,91 @@ class RichRenderer(Renderer):
             summary = rich_escape(vuln.summary or "-")
             table.add_row(rich_escape(vuln.id), cves, severity, fixed, summary)
 
+        _apply_vuln_table_caption(table, report.vulnerabilities)
         parts.append(table)
-
-        # Recommendation
-        all_fixed = sorted(
-            {v for vuln in report.vulnerabilities for v in vuln.fixed_versions}
-        )
-        if all_fixed:
-            parts.append(
-                f"  [bold]Recommendation:[/bold] Upgrade to >= {rich_escape(all_fixed[-1])}"
-            )
 
         return parts
 
-    @staticmethod
+    def _build_dependency_group(
+        self,
+        label: str,
+        deps: list[Dependency],
+        *,
+        available_width: int,
+    ) -> list[str | Padding]:
+        """Build a dependency group header and adaptive grid."""
+        cells = self._build_dependency_cells(deps)
+        grid = self._layout_text_grid(
+            cells,
+            available_width=available_width - 2,
+            max_columns=_MAX_DEPENDENCY_COLUMNS,
+        )
+        header = f"[bold]{label}[/bold] [dim]({len(deps)}):[/dim]"
+        return [header, Padding(grid, (0, 0, 0, 2))]
+
     def _build_deps_section(
+        self,
         name: str,
         version: str,
         metadata: PackageMetadata,
-    ) -> list[str]:
-        """Build dependency section lines for the unified panel."""
-        header = f"Dependencies for {rich_escape(name)} {rich_escape(version)}:"
-        lines: list[str] = [f"[bold]{header}[/bold]"]
+        *,
+        available_width: int,
+        tag: str | None = None,
+    ) -> list[str | Padding]:
+        """Build dependency section renderables for pretty output."""
+        tag_label = f" ({rich_escape(tag)})" if tag else ""
+        header = (
+            f"Dependencies for {rich_escape(name)} {rich_escape(version)}{tag_label}:"
+        )
+        parts: list[str | Padding] = [f"[bold]{header}[/bold]"]
 
         if metadata.dependencies is None:
-            lines.append(
+            parts.append(
                 "  [warning]Dependencies unknown "
                 "(Requires-Dist marked as Dynamic)[/warning]"
             )
             if metadata.dynamic_fields:
                 fields = ", ".join(rich_escape(f) for f in metadata.dynamic_fields)
-                lines.append(f"  [dim]Dynamic fields: {fields}[/dim]")
-            return lines
+                parts.append(f"  [dim]Dynamic fields: {fields}[/dim]")
+            return parts
 
         if not metadata.dependencies:
-            lines.append("  [dim]No dependencies[/dim]")
-            return lines
+            parts.append("  [dim]No dependencies[/dim]")
+            return parts
 
         required, optional = group_dependencies(metadata.dependencies)
+        has_group = False
 
-        for dep in required:
-            styled_spec = (
-                f" [specifier]{rich_escape(dep.specifier)}[/specifier]"
-                if dep.specifier
-                else ""
+        if required:
+            parts.extend(
+                self._build_dependency_group(
+                    "Required", required, available_width=available_width
+                )
             )
-            lines.append(f"  - {rich_escape(dep.name)}{styled_spec}")
+            has_group = True
 
         for extra_name, deps in sorted(optional.items()):
-            lines.append(f"  [bold]Optional \\[{rich_escape(extra_name)}]:[/bold]")
-            for dep in deps:
-                styled_spec = (
-                    f" [specifier]{rich_escape(dep.specifier)}[/specifier]"
-                    if dep.specifier
-                    else ""
+            if has_group:
+                parts.append("")
+            parts.extend(
+                self._build_dependency_group(
+                    f"Optional \\[{rich_escape(extra_name)}]",
+                    deps,
+                    available_width=available_width,
                 )
-                lines.append(f"  - {rich_escape(dep.name)}{styled_spec}")
+            )
+            has_group = True
 
         # Source provenance
         if metadata.source:
+            if has_group:
+                parts.append("")
             source_info = f"Source: {rich_escape(metadata.source)}"
             if metadata.source_filename:
                 source_info += f" ({rich_escape(metadata.source_filename)})"
-            lines.append(f"  [dim]{source_info}[/dim]")
+            parts.append(f"  [dim]{source_info}[/dim]")
 
-        return lines
+        return parts
 
     def render_info(self, report: InfoReport) -> None:
         """Render package info report as a single unified panel.
@@ -371,20 +469,28 @@ class RichRenderer(Renderer):
         info = report.info
 
         # Collect all renderables (strings and Rich objects) for the panel
-        renderables: list[str | Table | Rule] = []
+        renderables: list[str | Table | Rule | Padding] = []
 
         # -- Package overview -----------------------------------------------
         base_lines = self._build_info_base_lines(report)
         renderables.append("\n".join(base_lines))
 
-        if report.versions is not None:
-            version_lines = self._build_versions_grid(
-                report.versions, report.versions_total
+        if report.versions is not None and report.versions:
+            renderables.append("")
+            renderables.append("[bold]Versions:[/bold]")
+            cells = self._build_versions_cells(report.versions)
+            # 6 = panel borders (2x border + 2x space) + left indent
+            grid = self._layout_text_grid(
+                cells, available_width=self._console.width - 6
             )
-            if version_lines:
-                renderables.append("")
-                renderables.append("[bold]Versions:[/bold]")
-                renderables.append("\n".join(version_lines))
+            renderables.append(Padding(grid, (0, 0, 0, 2)))
+            if report.versions_total is not None and report.versions_total != len(
+                report.versions
+            ):
+                renderables.append(
+                    f"  [dim]Showing {len(report.versions)}"
+                    f" of {report.versions_total} versions[/dim]"
+                )
 
         # -- Version details ------------------------------------------------
         version = report.target_version or str(info.latest_version)
@@ -396,8 +502,9 @@ class RichRenderer(Renderer):
         renderables.append(Rule(label, style="dim"))
 
         if info.requires_python is not None:
+            python_spec = normalize_specifier_order(info.requires_python)
             renderables.append(
-                f"[bold]Python:[/bold] {rich_escape(info.requires_python)}"
+                f"[bold]Requires Python:[/bold] {rich_escape(python_spec)}"
             )
 
         if report.target_version_yanked:
@@ -412,9 +519,14 @@ class RichRenderer(Renderer):
             renderables.extend(vuln_parts)
 
         if report.metadata is not None:
-            dep_lines = self._build_deps_section(info.name, version, report.metadata)
+            dep_parts = self._build_deps_section(
+                info.name,
+                version,
+                report.metadata,
+                available_width=self._console.width - 6,
+            )
             renderables.append("")
-            renderables.append("\n".join(dep_lines))
+            renderables.extend(dep_parts)
 
         if report.errors:
             renderables.append("")
@@ -458,33 +570,9 @@ class RichRenderer(Renderer):
             return
 
         # -- Grid body -------------------------------------------------------
-        max_ver_len = max(len(str(v.version)) for v in versions)
-        renderables: list[Text] = []
-        for v in versions:
-            ver_str = str(v.version)
-            padded = ver_str.ljust(max_ver_len)
-            use_strike = v.yanked and not all_yanked
-
-            if v.release_date:
-                date_str = f"{v.release_date:%Y-%m-%d}"
-                if use_strike:
-                    renderables.append(
-                        Text(f"{padded} ({date_str})", style="dim strike")
-                    )
-                else:
-                    renderables.append(
-                        Text.assemble(
-                            (padded, "version"),
-                            (" (", "dim"),
-                            (date_str, "dim"),
-                            (")", "dim"),
-                        )
-                    )
-            else:
-                style = "dim strike" if use_strike else "version"
-                renderables.append(Text(padded, style=style))
-
-        grid = Columns(renderables, padding=(0, 3), equal=True)
+        cells = self._build_versions_cells(versions, all_yanked=all_yanked)
+        # 2 = left indent padding
+        grid = self._layout_text_grid(cells, available_width=self._console.width - 2)
         self._console.print(Padding(grid, (0, 0, 0, 2)))
 
         # -- Yanked-reasons footnote -----------------------------------------
@@ -541,56 +629,15 @@ class RichRenderer(Renderer):
         tag: str | None = None,
     ) -> None:
         """Render dependencies grouped by extras."""
-        tag_label = f" ({rich_escape(tag)})" if tag else ""
-        header = (
-            f"Dependencies for {rich_escape(name)} {rich_escape(version)}{tag_label}:"
+        parts = self._build_deps_section(
+            name,
+            version,
+            metadata,
+            available_width=self._console.width - 2,
+            tag=tag,
         )
-
-        if metadata.dependencies is None:
-            self._console.print(f"[bold]{header}[/bold]")
-            self._console.print(
-                "[warning]Dependencies unknown "
-                "(Requires-Dist marked as Dynamic)[/warning]"
-            )
-            if metadata.dynamic_fields:
-                fields = ", ".join(rich_escape(f) for f in metadata.dynamic_fields)
-                self._console.print(f"[dim]Dynamic fields: {fields}[/dim]")
-            return
-
-        if not metadata.dependencies:
-            self._console.print(f"[bold]{header}[/bold]")
-            self._console.print("[dim]No dependencies[/dim]")
-            return
-
-        required, optional = group_dependencies(metadata.dependencies)
-
-        self._console.print(f"[bold]{header}[/bold]")
-        for dep in required:
-            styled_spec = (
-                f" [specifier]{rich_escape(dep.specifier)}[/specifier]"
-                if dep.specifier
-                else ""
-            )
-            self._console.print(f"  - {rich_escape(dep.name)}{styled_spec}")
-
-        for extra_name, deps in sorted(optional.items()):
-            self._console.print(
-                f"\n[bold]Optional \\[{rich_escape(extra_name)}]:[/bold]"
-            )
-            for dep in deps:
-                styled_spec = (
-                    f" [specifier]{rich_escape(dep.specifier)}[/specifier]"
-                    if dep.specifier
-                    else ""
-                )
-                self._console.print(f"  - {rich_escape(dep.name)}{styled_spec}")
-
-        # Source provenance (dim, non-intrusive)
-        if metadata.source:
-            source_info = f"Source: {rich_escape(metadata.source)}"
-            if metadata.source_filename:
-                source_info += f" ({rich_escape(metadata.source_filename)})"
-            self._console.print(f"\n[dim]{source_info}[/dim]")
+        for part in parts:
+            self._console.print(part)
 
     def render_deps_diff(  # noqa: PLR0912
         self,
@@ -1058,16 +1105,8 @@ class RichRenderer(Renderer):
             summary = rich_escape(vuln.summary or "-")
             table.add_row(rich_escape(vuln.id), cves, severity, fixed, summary)
 
+        _apply_vuln_table_caption(table, report.vulnerabilities)
         self._console.print(table)
-
-        # Recommendation: show the highest fixed version if available
-        all_fixed = sorted(
-            {v for vuln in report.vulnerabilities for v in vuln.fixed_versions}
-        )
-        if all_fixed:
-            self._console.print(
-                f"\n[bold]Recommendation:[/bold] Upgrade to >= {rich_escape(all_fixed[-1])}"
-            )
 
     # -- Errors -------------------------------------------------------------
 

@@ -18,7 +18,7 @@ peeq versions <package> [options]
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--limit` | integer | 20 | Maximum number of versions to show. |
+| `--limit` | integer | 40 | Maximum number of versions to show. |
 | `--all` | flag | off | Show all versions (no limit). |
 | `--yanked` | flag | off | Show only yanked versions with their yank reasons. |
 | `--matching` | string | -- | PEP 440 version specifier to filter versions (e.g., `">=2.0,<3"`). |
@@ -48,7 +48,7 @@ The `--matching` option accepts standard [PEP 440](https://peps.python.org/pep-0
 
 ```
 $ peeq versions requests
-requests versions (showing 20 of 156):
+requests versions (showing 40 of 156):
   - 2.33.1 (2026-03-30) (latest)
   - 2.33.0 (2026-03-25)
   - 2.32.5 (2025-08-18)
@@ -62,7 +62,7 @@ requests versions (showing 20 of 156):
 ...
 ```
 
-By default, the 20 most recent versions are shown. Use `--all` to show every version, or `--limit N` to set a custom limit.
+By default, the 40 most recent versions are shown. Use `--all` to show every version, or `--limit N` to set a custom limit.
 
 ### List recent versions
 

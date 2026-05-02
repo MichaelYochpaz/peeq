@@ -15,6 +15,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
+
 if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any, TextIO
@@ -27,6 +30,7 @@ if TYPE_CHECKING:
         InfoReport,
         PackageMetadata,
         VersionInfo,
+        VulnerabilityInfo,
         VulnerabilityReport,
     )
     from peeq.resolver.models import ConflictInfo, SolverResult, WhyResult
@@ -101,6 +105,81 @@ def truncate_utf8(data: bytes, max_bytes: int) -> bytes:
         except UnicodeDecodeError:
             continue
     return b""
+
+
+@dataclass(frozen=True)
+class VulnerabilityRecommendation:
+    """Upgrade guidance derived from vulnerability fixed versions."""
+
+    version: str
+    """Highest known fixed version across reported vulnerabilities."""
+
+    unresolved_count: int
+    """Number of advisories that do not list a fixed version."""
+
+
+def _version_sort_key(version: str) -> tuple[int, Version, str]:
+    """Return a stable sort key that prefers valid PEP 440 versions."""
+    try:
+        return (1, Version(version), version)
+    except InvalidVersion:
+        return (0, Version("0"), version)
+
+
+def build_vulnerability_recommendation(
+    vulnerabilities: list[VulnerabilityInfo],
+) -> VulnerabilityRecommendation | None:
+    """Build upgrade guidance from known vulnerability fixed versions."""
+    fixed_versions = {v for vuln in vulnerabilities for v in vuln.fixed_versions}
+    if not fixed_versions:
+        return None
+
+    version = max(fixed_versions, key=_version_sort_key)
+    unresolved_count = sum(1 for vuln in vulnerabilities if not vuln.fixed_versions)
+    return VulnerabilityRecommendation(
+        version=version, unresolved_count=unresolved_count
+    )
+
+
+def format_unfixed_vulnerability_note(unresolved_count: int) -> str:
+    """Format a note for advisories that do not list a fixed version."""
+    advisory = "advisory" if unresolved_count == 1 else "advisories"
+    verb = "has" if unresolved_count == 1 else "have"
+    return f"{unresolved_count} {advisory} {verb} no fixed version listed."
+
+
+# Operator sort key: lower-bound operators first, then exclusions, then
+# upper-bound operators.  Within each group, order is stable.
+_OPERATOR_ORDER: dict[str, int] = {
+    ">=": 0,
+    ">": 1,
+    "==": 2,
+    "~=": 3,
+    "===": 4,
+    "!=": 5,
+    "<": 6,
+    "<=": 7,
+}
+
+
+def _specifier_sort_key(spec: Specifier) -> tuple[int, str]:
+    return (_OPERATOR_ORDER.get(spec.operator, 99), str(spec))
+
+
+def normalize_specifier_order(raw: str) -> str:
+    """Reorder a PEP 440 specifier string so lower bounds come first.
+
+    Returns the original string unchanged if parsing fails.
+    """
+    try:
+        specs = list(SpecifierSet(raw))
+    except InvalidSpecifier:
+        return raw
+
+    if len(specs) <= 1:
+        return raw
+
+    return ",".join(str(s) for s in sorted(specs, key=_specifier_sort_key))
 
 
 # ---------------------------------------------------------------------------
