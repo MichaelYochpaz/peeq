@@ -71,6 +71,7 @@ See `pyproject.toml` for the full rule set.
 
 Use [Google-style](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) docstrings.
 Use imperative mood for function/method summary lines ("Return", "Fetch", "Parse") and descriptive mood for class and module summary lines.
+Use single backticks for all inline code in docstrings and comments.
 Every `.py` file must have a module-level docstring.
 
 ```python

@@ -8,7 +8,7 @@ parses the natural-language PubGrub proof chains that `uv` emits.
 The parser is designed for graceful degradation: if any extraction
 step fails (e.g., because `uv` changes its output format), the
 cleaned raw text is returned as the conflict message.  The public
-entry point :func:`_parse_uv_error` **never raises**.
+entry point `_parse_uv_error` **never raises**.
 
 Pipeline stages:
 
@@ -16,7 +16,7 @@ Pipeline stages:
    and separate trailing `hint:`/`help:` blocks.
 2. **Extract** — best-effort regex extraction of `depends on` and
    `you require` clauses from premise lines, with pivot detection.
-3. **Assemble** — build :class:`ConflictInfo` objects from extracted
+3. **Assemble** — build `ConflictInfo` objects from extracted
    data, falling back to cleaned raw text when extraction yields
    nothing.
 """
@@ -493,7 +493,7 @@ def _parse_uv_error(stderr: str) -> tuple[list[ConflictInfo], str]:
     """Parse `uv` stderr into structured conflicts and a summary.
 
     Returns `(conflicts, summary)` where *conflicts* is a list of
-    :class:`ConflictInfo` objects and *summary* is a short global
+    `ConflictInfo` objects and *summary* is a short global
     message suitable for the `ResolutionImpossible` exception.
 
     **Never raises.**  On any parsing failure, falls back to the

@@ -218,7 +218,7 @@ def has_prefix(members: list[ArchiveMember], prefix: str) -> bool:
     """Check whether *prefix* matches a directory in the archive.
 
     Returns `True` if any archive member is at or below *prefix*.
-    Normalises the same way :func:`build_ls_entries` does: `"src"`
+    Normalises the same way `build_ls_entries` does: `"src"`
     and `"src/"` are equivalent; matching is on directory boundaries.
     """
     stripped = prefix.strip("/")

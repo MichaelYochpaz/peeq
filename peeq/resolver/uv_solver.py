@@ -335,7 +335,7 @@ class UvSolver(DependencyResolver):
         """Convert uv error output to an appropriate exception.
 
         Resolution failures (conflicts, missing packages) are routed
-        through :func:`_parse_uv_error` for structured extraction.
+        through `_parse_uv_error` for structured extraction.
         Non-resolution errors (auth, network, internal) raise
         `RuntimeError` directly.
         """
