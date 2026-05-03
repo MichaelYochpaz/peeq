@@ -31,5 +31,5 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.14"
-      - run: uv sync --dev
+      - run: uv sync --locked --dev
       - run: uv run zensical build --clean
