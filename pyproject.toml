@@ -181,3 +181,8 @@ output-format = "full"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 timeout = 30
+
+# https://coverage.readthedocs.io/en/latest/config.html
+[tool.coverage.run]
+source = ["peeq"]
+branch = true

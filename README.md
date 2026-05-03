@@ -5,6 +5,7 @@
 <p align="center">
   <a href="https://pypi.org/project/peeq/"><img src="https://img.shields.io/pypi/v/peeq" alt="PyPI"></a>
   <a href="https://pypi.org/project/peeq/"><img src="https://img.shields.io/pypi/pyversions/peeq" alt="Python"></a>
+  <a href="https://codecov.io/gh/MichaelYochpaz/peeq"><img src="https://codecov.io/gh/MichaelYochpaz/peeq/graph/badge.svg" alt="Coverage"></a>
   <a href="LICENSE"><img src="https://img.shields.io/pypi/l/peeq" alt="License"></a>
 </p>
 
