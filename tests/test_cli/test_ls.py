@@ -1,7 +1,7 @@
 """Unit tests for the `ls` CLI command.
 
-Covers `--all`, `--limit`, `--prefix`, and `--recursive` flag
-behavior, error handling, and renderer argument contracts for
+Covers `--all`, `--limit`, `--prefix`, `--recursive`, and `--glob`
+flag behavior, error handling, and renderer argument contracts for
 `peeq ls`.
 
 All tests use mock-only isolation — no network or filesystem access.
@@ -244,3 +244,84 @@ class TestPrefixNoMatch:
         call_args = renderer.render_ls.call_args
         display = call_args.args[2]
         assert display == []
+
+
+# ---------------------------------------------------------------------------
+# Tests: --glob flag
+# ---------------------------------------------------------------------------
+
+
+class TestGlobFlag:
+    """Test `--glob` / `-g` wiring in `ls_cmd`."""
+
+    async def test_glob_implies_recursive(self) -> None:
+        """`--glob` forces `recursive=True` even when not explicitly set."""
+        members = [
+            ArchiveMember(path="src/main.py", size=50, is_dir=False),
+            ArchiveMember(path="README.md", size=80, is_dir=False),
+        ]
+        renderer = _make_renderer()
+        service = _make_service(members)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+            patch("peeq.cli._resolve_version", side_effect=_mock_resolve),
+        ):
+            await ls_cmd("testpkg", glob_patterns=["*.py"])
+
+        call_kwargs = renderer.render_ls.call_args.kwargs
+        assert call_kwargs["recursive"] is True
+        assert call_kwargs["glob_patterns"] == ["*.py"]
+
+    async def test_invalid_glob_exits_before_network(self) -> None:
+        """Invalid glob pattern renders error and exits without network."""
+        renderer = _make_renderer()
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service") as mock_open,
+            pytest.raises(SystemExit, match="1"),
+        ):
+            await ls_cmd("testpkg", glob_patterns=[""])
+
+        renderer.render_error.assert_called_once()
+        mock_open.assert_not_called()
+
+    async def test_glob_patterns_forwarded_to_renderer(self) -> None:
+        """Multiple `--glob` patterns are forwarded to the renderer."""
+        members = [
+            ArchiveMember(path="src/api.py", size=100, is_dir=False),
+            ArchiveMember(path="src/types.pyi", size=40, is_dir=False),
+        ]
+        renderer = _make_renderer()
+        service = _make_service(members)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+            patch("peeq.cli._resolve_version", side_effect=_mock_resolve),
+        ):
+            await ls_cmd("testpkg", glob_patterns=["*.py", "*.pyi"])
+
+        call_kwargs = renderer.render_ls.call_args.kwargs
+        assert call_kwargs["glob_patterns"] == ["*.py", "*.pyi"]
+
+    async def test_glob_with_invalid_prefix_errors(self) -> None:
+        """Invalid prefix errors even when `--glob` is active."""
+        members = _root_files(5)
+        renderer = _make_renderer()
+        service = _make_service(members)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+            patch("peeq.cli._resolve_version", side_effect=_mock_resolve),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            await ls_cmd("testpkg", prefix="nonexistent", glob_patterns=["*.py"])
+
+        renderer.render_error.assert_called_once()
+        msg = renderer.render_error.call_args.args[0]
+        assert "nonexistent" in msg
+        renderer.render_ls.assert_not_called()

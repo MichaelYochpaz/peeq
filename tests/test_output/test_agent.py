@@ -1541,6 +1541,19 @@ class TestRenderLsRecursive:
         assert "src/util.py" in out
 
 
+class TestRenderLsGlob:
+    """Test glob-related attributes and messages in agent rendering."""
+
+    def test_globs_attribute_and_empty_message(self) -> None:
+        """Empty results with glob shows globs attribute and match message."""
+        r, s = _renderer()
+        r.render_ls("pkg", "1.0.0", [], total=0, glob_patterns=["*.rs"])
+        out = s.getvalue()
+        assert "globs=" in out
+        assert "No files matched glob" in out
+        assert "Archive is empty" not in out
+
+
 # ---------------------------------------------------------------------------
 # Tests: render_file_content (extended)
 # ---------------------------------------------------------------------------

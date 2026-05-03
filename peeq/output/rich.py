@@ -779,6 +779,7 @@ class RichRenderer(Renderer):
         *,
         prefix: str | None = None,
         recursive: bool = False,  # noqa: ARG002
+        glob_patterns: list[str] | None = None,
     ) -> None:
         """Render archive directory listing as a table."""
         safe_name = rich_escape(name)
@@ -786,9 +787,16 @@ class RichRenderer(Renderer):
 
         if not entries:
             prefix_label = f" under {rich_escape(prefix)}" if prefix else ""
-            self._console.print(
-                f"[dim]Archive is empty for {safe_name} {safe_version}{prefix_label}[/dim]"
-            )
+            if glob_patterns:
+                patterns = ", ".join(rich_escape(p) for p in glob_patterns)
+                self._console.print(
+                    f"[dim]No files matched glob {patterns}"
+                    f" for {safe_name} {safe_version}{prefix_label}[/dim]"
+                )
+            else:
+                self._console.print(
+                    f"[dim]Archive is empty for {safe_name} {safe_version}{prefix_label}[/dim]"
+                )
             return
 
         # Build title with optional truncation and prefix info
@@ -797,6 +805,9 @@ class RichRenderer(Renderer):
         )
         prefix_label = f" under {rich_escape(prefix)}" if prefix else ""
         title = f"Archive contents for {safe_name} {safe_version}{prefix_label} ({count_label})"
+        if glob_patterns:
+            glob_str = ", ".join(rich_escape(p) for p in glob_patterns)
+            title += f"\n[dim]matching {glob_str}[/dim]"
 
         table = Table(title=title)
         table.add_column("Path", style="filename")

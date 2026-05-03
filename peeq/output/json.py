@@ -253,6 +253,7 @@ class JSONRenderer(Renderer):
         *,
         prefix: str | None = None,
         recursive: bool = False,
+        glob_patterns: list[str] | None = None,
     ) -> None:
         """Render archive directory listing as JSON."""
         entries_list: list[dict[str, object]] = []
@@ -282,6 +283,7 @@ class JSONRenderer(Renderer):
                 "version": version,
                 "recursive": recursive,
                 "prefix": prefix,
+                "globs": glob_patterns,
                 "showing": len(entries),
                 "total": total,
                 "truncated": len(entries) < total,

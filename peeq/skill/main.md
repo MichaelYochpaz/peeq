@@ -94,22 +94,32 @@ peeq artifacts requests --version 2.31.0 --format agent
 
 `peeq ls <package>` — List a navigable directory listing of a package's distribution archive. By default, shows a non-recursive listing of the top-level directory. Use this to discover paths before reading them with `cat`.
 
-Workflow: run `peeq ls <pkg>` to see the top-level structure, then drill down with `peeq ls <pkg> --prefix src/` to explore subdirectories. Use `-r` for a flat recursive listing of all files. Use `--all` to show all entries when the listing is truncated.
+Workflow: run `peeq ls <pkg>` to see the top-level structure, then drill down with `peeq ls <pkg> --prefix src/` to explore subdirectories. Use `-g` to search for files by glob pattern, `-r` for a flat recursive listing of all files, and `--all` to show all entries when the listing is truncated.
 
 ```sh
 peeq ls requests --format agent
 peeq ls requests --prefix src/ --format agent
 peeq ls requests -r --all --format agent
 peeq ls requests --version 2.31.0 --format agent
+peeq ls requests -g "*.py" --format agent
+peeq ls requests -g "*.py" -g "*.pyi" --format agent
+peeq ls requests -g "test_*" --prefix tests/ --format agent
 ```
 
 - `--version` — Target version.
 - `--prefix PATH` — Show entries under this path (e.g., `src/`).
 - `-r`, `--recursive` — Flat recursive file listing.
+- `-g`, `--glob PATTERN` — Recursively search for files matching a glob pattern (implies `-r`). Repeatable with OR semantics. Always quote the pattern to prevent shell expansion.
 - `--limit N` — Maximum entries to show (default 50).
 - `--all` — Show all entries (no limit). Cannot combine with `--limit`.
 
-Check the `showing`, `total`, and `truncated` attributes in agent output. If `truncated="true"`, narrow results with `--prefix` to explore a specific directory, or use `--all` to see all entries.
+Glob matching:
+
+- `*.py` (no `/`) matches the filename at any depth — `setup.py`, `src/pkg/api.py`.
+- `src/*.py` (contains `/`) matches the full path. `*` stays within one segment; use `**` for recursive descent: `src/**/*.py`.
+- With `--prefix`, patterns match the prefix-relative path. `--prefix src/ -g "pkg/*.py"` is equivalent to `-g "src/pkg/*.py"`.
+
+Check the `showing`, `total`, `truncated`, and `globs` attributes in agent output. When `globs` is present, results are filtered — an empty result means no files matched, not an empty archive. If `truncated="true"`, narrow results with `--prefix` to explore a specific directory, use `--glob` to filter by pattern, or use `--all` to see all entries.
 
 ### File Content
 
@@ -210,6 +220,7 @@ For cache and config management, run `peeq cache --help` or `peeq config --help`
 
 1. Browse the top-level structure: `peeq ls <pkg> --format agent`
 2. Explore a subdirectory: `peeq ls <pkg> --prefix src/ --format agent`
+   Or search by pattern: `peeq ls <pkg> -g "*.py" --format agent`
 3. Read a specific file: `peeq cat <pkg> <path> --format agent`
 4. If you need the full archive on disk, download and extract: `peeq download <pkg> --extract -o <tmpdir> --format agent`, then browse the extracted directory.
 

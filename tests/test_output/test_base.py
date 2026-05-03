@@ -426,6 +426,129 @@ class TestHasPrefix:
         ]
         assert has_prefix(members, "lib") is True
 
+    def test_file_valued_prefix_returns_false(self) -> None:
+        """A file matching the prefix name is not a valid directory prefix."""
+        members = [
+            ArchiveMember(path="src", size=100, is_dir=False),
+        ]
+        assert has_prefix(members, "src") is False
+
     def test_empty_archive(self) -> None:
         """Return False for any prefix on an empty archive."""
         assert has_prefix([], "src/") is False
+
+
+# ---------------------------------------------------------------------------
+# Tests: build_ls_entries with glob_patterns
+# ---------------------------------------------------------------------------
+
+
+class TestBuildLsEntriesGlob:
+    """Test glob filtering in build_ls_entries."""
+
+    _MEMBERS: ClassVar[list[ArchiveMember]] = [
+        ArchiveMember(path="src/pkg/", size=0, is_dir=True),
+        ArchiveMember(path="src/pkg/__init__.py", size=10, is_dir=False),
+        ArchiveMember(path="src/pkg/api.py", size=100, is_dir=False),
+        ArchiveMember(path="src/pkg/utils.py", size=50, is_dir=False),
+        ArchiveMember(path="tests/test_api.py", size=30, is_dir=False),
+        ArchiveMember(path="tests/test_utils.py", size=40, is_dir=False),
+        ArchiveMember(path="setup.py", size=20, is_dir=False),
+        ArchiveMember(path="README.md", size=80, is_dir=False),
+    ]
+
+    def test_glob_filters_by_extension(self) -> None:
+        """Glob '*.py' returns only Python files."""
+        entries = build_ls_entries(
+            self._MEMBERS, recursive=True, glob_patterns=["*.py"]
+        )
+        assert len(entries) == 6
+        assert all(e.path.endswith(".py") for e in entries)
+
+    def test_glob_filters_by_prefix_pattern(self) -> None:
+        """Glob 'test_*' matches test files at any depth."""
+        entries = build_ls_entries(
+            self._MEMBERS, recursive=True, glob_patterns=["test_*"]
+        )
+        paths = [e.path for e in entries]
+        assert "tests/test_api.py" in paths
+        assert "tests/test_utils.py" in paths
+        assert len(entries) == 2
+
+    def test_glob_with_prefix_scope(self) -> None:
+        """Glob + prefix: glob matches against prefix-relative path."""
+        entries = build_ls_entries(
+            self._MEMBERS,
+            prefix="src/pkg",
+            recursive=True,
+            glob_patterns=["*.py"],
+        )
+        paths = [e.path for e in entries]
+        assert "src/pkg/__init__.py" in paths
+        assert "src/pkg/api.py" in paths
+        assert "src/pkg/utils.py" in paths
+        # Files outside prefix are excluded
+        assert "tests/test_api.py" not in paths
+        assert "setup.py" not in paths
+        assert len(entries) == 3
+
+    def test_glob_or_semantics(self) -> None:
+        """Multiple globs use OR semantics."""
+        entries = build_ls_entries(
+            self._MEMBERS, recursive=True, glob_patterns=["*.py", "*.md"]
+        )
+        assert len(entries) == 7
+
+    def test_glob_no_matches(self) -> None:
+        """Glob matching nothing returns empty list."""
+        entries = build_ls_entries(
+            self._MEMBERS, recursive=True, glob_patterns=["*.rs"]
+        )
+        assert entries == []
+
+    def test_glob_with_path_pattern(self) -> None:
+        """Slash pattern matches full (prefix-relative) path."""
+        entries = build_ls_entries(
+            self._MEMBERS, recursive=True, glob_patterns=["tests/*.py"]
+        )
+        paths = [e.path for e in entries]
+        assert "tests/test_api.py" in paths
+        assert "tests/test_utils.py" in paths
+        assert len(entries) == 2
+
+    def test_glob_none_means_no_filter(self) -> None:
+        """glob_patterns=None applies no filtering."""
+        entries = build_ls_entries(self._MEMBERS, recursive=True, glob_patterns=None)
+        assert len(entries) == 7
+
+    def test_glob_prefix_relative_matching(self) -> None:
+        """Slash pattern is relative to prefix, not full archive path."""
+        entries = build_ls_entries(
+            self._MEMBERS,
+            prefix="src",
+            recursive=True,
+            glob_patterns=["pkg/*.py"],
+        )
+        paths = [e.path for e in entries]
+        assert "src/pkg/__init__.py" in paths
+        assert "src/pkg/api.py" in paths
+        assert len(entries) == 3
+
+    def test_glob_without_recursive_raises(self) -> None:
+        """glob_patterns with recursive=False raises ValueError."""
+        with pytest.raises(ValueError, match="recursive"):
+            build_ls_entries(self._MEMBERS, recursive=False, glob_patterns=["*.py"])
+
+    def test_glob_prefix_matchbase_interaction(self) -> None:
+        """Basename pattern with prefix matches via MATCHBASE."""
+        entries = build_ls_entries(
+            self._MEMBERS,
+            prefix="src",
+            recursive=True,
+            glob_patterns=["*.py"],
+        )
+        paths = [e.path for e in entries]
+        assert "src/pkg/__init__.py" in paths
+        assert "src/pkg/api.py" in paths
+        assert "src/pkg/utils.py" in paths
+        assert len(entries) == 3

@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
+from peeq.globmatch import glob_match_any
+
 if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any, TextIO
@@ -226,11 +228,41 @@ def has_prefix(members: list[ArchiveMember], prefix: str) -> bool:
         return True  # root always exists
     norm = stripped + "/"
     return any(
-        m.path == stripped
+        (m.path == stripped and m.is_dir)
         or m.path.startswith(norm)
         or (m.is_dir and (m.path.rstrip("/") + "/") == norm)
         for m in members
     )
+
+
+def _build_recursive_entries(
+    members: list[ArchiveMember],
+    norm_prefix: str,
+    glob_patterns: list[str] | None,
+) -> list[LsEntry]:
+    """Build flat file entries for recursive mode, with optional glob filter."""
+    result: list[LsEntry] = []
+    for m in members:
+        if m.is_dir:
+            continue
+        if norm_prefix and not m.path.startswith(norm_prefix):
+            continue
+        if glob_patterns:
+            # Match against prefix-relative path (--prefix is "cd").
+            rel = m.path[len(norm_prefix) :] if norm_prefix else m.path
+            if not glob_match_any(rel, glob_patterns):
+                continue
+        result.append(
+            LsEntry(
+                path=m.path,
+                is_dir=False,
+                size=m.size,
+                file_count=0,
+                subdir_count=0,
+                total_size=0,
+            )
+        )
+    return result
 
 
 def build_ls_entries(
@@ -238,6 +270,7 @@ def build_ls_entries(
     *,
     prefix: str | None = None,
     recursive: bool = False,
+    glob_patterns: list[str] | None = None,
 ) -> list[LsEntry]:
     """Build a listing from raw archive members.
 
@@ -255,12 +288,22 @@ def build_ls_entries(
             boundaries (`"src"` does not match `"src_old/"`).
         recursive: When `True`, return a flat list of files
             (no directory entries), optionally filtered by *prefix*.
+        glob_patterns: When set, filter entries to those matching
+            any of the given glob patterns (OR semantics).  Matching
+            is against the prefix-relative path.
 
     Returns:
         Sorted list of entries: directories first, then files,
         alphabetical within each group.  Empty list when *prefix*
         matches nothing.
+
+    Raises:
+        ValueError: If *glob_patterns* is set but *recursive* is
+            `False` (glob filtering requires recursive mode).
     """
+    if glob_patterns and not recursive:
+        raise ValueError("glob_patterns requires recursive=True")
+
     # Normalise prefix: None / "" → root, "src" → "src/"
     norm_prefix = ""
     if prefix is not None:
@@ -320,18 +363,7 @@ def build_ls_entries(
 
     # -- Phase 3: build output entries -----------------------------
     if recursive:
-        result = [
-            LsEntry(
-                path=m.path,
-                is_dir=False,
-                size=m.size,
-                file_count=0,
-                subdir_count=0,
-                total_size=0,
-            )
-            for m in members
-            if not m.is_dir and (not norm_prefix or m.path.startswith(norm_prefix))
-        ]
+        result = _build_recursive_entries(members, norm_prefix, glob_patterns)
         result.sort(key=lambda e: e.path)
         return result
 
@@ -442,6 +474,7 @@ class Renderer(ABC):
         *,
         prefix: str | None = None,
         recursive: bool = False,
+        glob_patterns: list[str] | None = None,
     ) -> None:
         """Render archive directory listing or recursive file listing."""
         ...

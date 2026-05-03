@@ -398,6 +398,7 @@ class PlainRenderer(Renderer):
         *,
         prefix: str | None = None,
         recursive: bool = False,  # noqa: ARG002
+        glob_patterns: list[str] | None = None,
     ) -> None:
         """Render archive directory listing as a dash list."""
         safe_name = self._safe(name)
@@ -410,12 +411,24 @@ class PlainRenderer(Renderer):
             else f"{total} entries"
         )
         prefix_label = f" under {self._safe(prefix)}" if prefix else ""
-        header = f"Archive contents for {safe_name} {safe_version}{prefix_label} ({count_label}):"
+        glob_label = (
+            f" matching {', '.join(self._safe(p) for p in glob_patterns)}"
+            if glob_patterns
+            else ""
+        )
+        header = f"Archive contents for {safe_name} {safe_version}{prefix_label}{glob_label} ({count_label}):"
 
         if not entries:
-            self._writeln(
-                f"Archive contents for {safe_name} {safe_version}{prefix_label} (0 entries):"
-            )
+            if glob_patterns:
+                patterns = ", ".join(self._safe(p) for p in glob_patterns)
+                self._writeln(
+                    f"No files matched glob {patterns}"
+                    f" for {safe_name} {safe_version}{prefix_label}."
+                )
+            else:
+                self._writeln(
+                    f"Archive contents for {safe_name} {safe_version}{prefix_label} (0 entries):"
+                )
             return
 
         self._writeln(header)

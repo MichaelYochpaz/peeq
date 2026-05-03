@@ -949,6 +949,26 @@ class TestRenderLsRecursive:
         assert all(e["type"] == "file" for e in data["entries"])
 
 
+class TestRenderLsGlob:
+    """Test glob-related fields in JSON rendering."""
+
+    def test_globs_field_present(self) -> None:
+        """Glob patterns appear in the `globs` field."""
+        r, s = _renderer()
+        entries = [_ls_entry(path="main.py", is_dir=False, size=10)]
+        r.render_ls("pkg", "1.0.0", entries, total=1, glob_patterns=["*.py"])
+        data = _parse(s)
+        assert data["globs"] == ["*.py"]
+
+    def test_globs_null_when_absent(self) -> None:
+        """`globs` is null when no glob patterns are provided."""
+        r, s = _renderer()
+        entries = [_ls_entry(path="main.py", is_dir=False, size=10)]
+        r.render_ls("pkg", "1.0.0", entries, total=1)
+        data = _parse(s)
+        assert data["globs"] is None
+
+
 # ---------------------------------------------------------------------------
 # Tests: render_file_content (extended)
 # ---------------------------------------------------------------------------

@@ -526,6 +526,7 @@ class AgentRenderer(Renderer):
         *,
         prefix: str | None = None,
         recursive: bool = False,
+        glob_patterns: list[str] | None = None,
     ) -> None:
         """Render archive directory listing inside XML tags."""
         self._write_data_open()
@@ -538,10 +539,17 @@ class AgentRenderer(Renderer):
         )
         if prefix is not None:
             attrs += f" prefix={escape_xml_attr(prefix)}"
+        if glob_patterns is not None:
+            globs_value = ", ".join(glob_patterns)
+            attrs += f" globs={escape_xml_attr(globs_value)}"
         self._writeln(f"{attrs}>")
 
         if not entries:
-            self._writeln("Archive is empty.")
+            if glob_patterns:
+                patterns = ", ".join(glob_patterns)
+                self._writeln(f"No files matched glob: {escape_xml(patterns)}")
+            else:
+                self._writeln("Archive is empty.")
         else:
             for entry in entries:
                 if entry.is_dir:

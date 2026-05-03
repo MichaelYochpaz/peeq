@@ -24,6 +24,7 @@ from cyclopts.exceptions import CycloptsError
 from pydantic import ByteSize, TypeAdapter
 
 from peeq import APP_NAME, __version__
+from peeq.globmatch import InvalidGlobError, validate_glob_patterns
 from peeq.output.base import (
     OutputFormat,
     build_ls_entries,
@@ -722,10 +723,22 @@ async def ls_cmd(  # noqa: PLR0913
         bool,
         Parameter(
             name=["--recursive", "-r"],
+            negative="",
             show_default=False,
             help="Flat recursive file listing instead of directory navigation.",
         ),
     ] = False,
+    glob_patterns: Annotated[
+        list[str] | None,
+        Parameter(
+            name=["--glob", "-g"],
+            json_list=False,
+            help=(
+                "Recursively search for files matching a glob pattern."
+                " Repeatable with OR semantics."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """List paths inside a package archive."""
     renderer = _get_renderer()
@@ -742,6 +755,18 @@ async def ls_cmd(  # noqa: PLR0913
     if all_entries:
         limit = None
 
+    # --glob implies recursive mode.
+    if glob_patterns:
+        recursive = True
+
+    # Validate glob patterns early (before network/cache work).
+    if glob_patterns:
+        try:
+            validate_glob_patterns(glob_patterns)
+        except InvalidGlobError as exc:
+            renderer.render_error(str(exc))
+            raise SystemExit(1) from None
+
     async with _open_service() as service:
         resolved_version = await _resolve_version(service, package, version)
         if resolved_version is None:
@@ -754,15 +779,18 @@ async def ls_cmd(  # noqa: PLR0913
             renderer.render_error(str(exc))
             raise SystemExit(1) from None
 
-    entries = build_ls_entries(members, prefix=prefix, recursive=recursive)
-
-    if not entries and prefix is not None and not has_prefix(members, prefix):
+    # Invalid prefix is always an error, regardless of glob.
+    if prefix is not None and not has_prefix(members, prefix):
         renderer.render_error(
             f"No directory '{prefix}' in archive for"
             f" {package} {resolved_version}."
             f" Use 'peeq ls {package}' to see available paths."
         )
         raise SystemExit(1)
+
+    entries = build_ls_entries(
+        members, prefix=prefix, recursive=recursive, glob_patterns=glob_patterns
+    )
 
     total = len(entries)
     display = entries[:limit] if limit is not None else entries
@@ -773,6 +801,7 @@ async def ls_cmd(  # noqa: PLR0913
         total,
         prefix=prefix,
         recursive=recursive,
+        glob_patterns=glob_patterns,
     )
 
 
