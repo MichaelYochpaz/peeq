@@ -17,7 +17,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, TypeVar
 
 from cyclopts import App, Group, Parameter
 from cyclopts.exceptions import CycloptsError
@@ -202,6 +202,30 @@ _DEFAULT_LS_LIMIT: int = 50
 
 _DEFAULT_CAT_MAX_BYTES: int = 131_072  # 128 KiB
 """Default maximum bytes of text content to show from `cat`."""
+
+
+_T = TypeVar("_T")
+
+
+def _slice_window(
+    items: list[_T],
+    *,
+    offset: int,
+    limit: int | None,
+) -> tuple[list[_T], int]:
+    """Slice a list into a display window.
+
+    Apply *offset* first (skip items), then *limit* (cap the count).
+    When *limit* is `None`, return all items from *offset* onward.
+
+    Returns:
+        A `(display, total)` tuple where *display* is the windowed
+        slice and *total* is `len(items)` (before slicing).
+    """
+    total = len(items)
+    display = items[offset : offset + limit] if limit is not None else items[offset:]
+    return display, total
+
 
 _DURATION_SUFFIXES: dict[str, int] = {"s": 1, "m": 60, "h": 3600, "d": 86400}
 
@@ -428,7 +452,7 @@ async def info(  # noqa: PLR0913
 
 
 @app.command
-async def versions(  # noqa: PLR0913
+async def versions(  # noqa: C901, PLR0912, PLR0913
     package: Annotated[str, Parameter(help="Package name.")],
     *,
     limit: Annotated[
@@ -438,6 +462,13 @@ async def versions(  # noqa: PLR0913
             help="Maximum number of versions to show.",
         ),
     ] = _DEFAULT_VERSION_LIMIT,
+    offset: Annotated[
+        int,
+        Parameter(
+            name="--offset",
+            help="Number of versions to skip before applying --limit.",
+        ),
+    ] = 0,
     show_all: Annotated[
         bool,
         Parameter(
@@ -479,6 +510,10 @@ async def versions(  # noqa: PLR0913
 
     if limit is not None and limit < 0:
         renderer.render_error("--limit must be non-negative")
+        raise SystemExit(1)
+
+    if offset < 0:
+        renderer.render_error("--offset must be non-negative")
         raise SystemExit(1)
 
     if show_all:
@@ -527,12 +562,18 @@ async def versions(  # noqa: PLR0913
         renderer.render_error(f"No versions of {package} match {matching}")
         raise SystemExit(1)
 
-    total = len(all_versions)
-    display = all_versions[:limit] if limit is not None else all_versions
+    # Capture the actual latest version before slicing so renderers
+    # can label it correctly regardless of the offset window.
+    latest_version = str(all_versions[0].version) if all_versions else None
+
+    display, total = _slice_window(all_versions, offset=offset, limit=limit)
     renderer.render_versions(
         package,
         display,
         total,
+        offset=offset,
+        latest_version=latest_version,
+        yanked=yanked,
         matching=matching,
         original_total=original_total,
     )
@@ -703,6 +744,13 @@ async def ls_cmd(  # noqa: PLR0913
             help="Maximum number of entries to show.",
         ),
     ] = _DEFAULT_LS_LIMIT,
+    offset: Annotated[
+        int,
+        Parameter(
+            name="--offset",
+            help="Number of entries to skip before applying --limit.",
+        ),
+    ] = 0,
     all_entries: Annotated[
         bool,
         Parameter(
@@ -752,6 +800,10 @@ async def ls_cmd(  # noqa: PLR0913
         renderer.render_error("--limit must be non-negative")
         raise SystemExit(1)
 
+    if offset < 0:
+        renderer.render_error("--offset must be non-negative")
+        raise SystemExit(1)
+
     if all_entries:
         limit = None
 
@@ -792,13 +844,13 @@ async def ls_cmd(  # noqa: PLR0913
         members, prefix=prefix, recursive=recursive, glob_patterns=glob_patterns
     )
 
-    total = len(entries)
-    display = entries[:limit] if limit is not None else entries
+    display, total = _slice_window(entries, offset=offset, limit=limit)
     renderer.render_ls(
         package,
         resolved_version,
         display,
         total,
+        offset=offset,
         prefix=prefix,
         recursive=recursive,
         glob_patterns=glob_patterns,

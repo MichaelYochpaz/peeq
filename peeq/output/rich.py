@@ -202,6 +202,24 @@ def _apply_vuln_table_caption(
 # ---------------------------------------------------------------------------
 
 
+def _rich_range_label(showing: int, total: int, offset: int = 0) -> str:
+    """Build a human-readable range label for windowed output.
+
+    Uses 1-based inclusive ranges when offset > 0 (e.g. `"showing 41\u201380 of 200"`).
+    Falls back to the simpler `"showing N of M"` / `"N"` form
+    when offset is 0 for backward-compatible display.
+    """
+    if offset > 0:
+        if showing == 0:
+            return f"showing 0 of {total}"
+        start = offset + 1
+        end = offset + showing
+        return f"showing {start}\u2013{end} of {total}"
+    if showing < total:
+        return f"showing {showing} of {total}"
+    return str(total)
+
+
 class RichRenderer(Renderer):
     """Terminal renderer using Rich panels, tables, and syntax highlighting."""
 
@@ -245,13 +263,13 @@ class RichRenderer(Renderer):
     def _build_versions_cells(
         versions: list[VersionInfo],
         *,
-        all_yanked: bool = False,
+        yanked: bool = False,
     ) -> list[Text]:
         """Build styled `Text` cells for a version grid.
 
         Each cell shows `version (date)`.  The version string is
         padded to the widest entry so dates align across columns.
-        Yanked versions use strikethrough styling unless *all_yanked*
+        Yanked versions use strikethrough styling unless *yanked*
         is set (the header conveys it instead).
         """
         max_ver_len = max(len(str(v.version)) for v in versions)
@@ -260,7 +278,7 @@ class RichRenderer(Renderer):
         for v in versions:
             ver_str = str(v.version)
             padded = ver_str.ljust(max_ver_len)
-            use_strike = v.yanked and not all_yanked
+            use_strike = v.yanked and not yanked
 
             if v.release_date:
                 date_str = f"{v.release_date:%Y-%m-%d}"
@@ -539,30 +557,41 @@ class RichRenderer(Renderer):
             Panel(Group(*renderables), title=rich_escape(info.name), expand=False)
         )
 
-    def render_versions(
+    def render_versions(  # noqa: PLR0913
         self,
         name: str,
         versions: list[VersionInfo],
         total: int,
         *,
+        offset: int = 0,
+        latest_version: str | None = None,
+        yanked: bool = False,
         matching: str | None = None,
         original_total: int | None = None,
     ) -> None:
         """Render version list as a responsive multi-column grid."""
         safe_name = rich_escape(name)
         showing = len(versions)
-        latest = rich_escape(str(versions[0].version)) if versions else None
-        all_yanked = bool(versions) and all(v.yanked for v in versions)
+        safe_latest = rich_escape(latest_version) if latest_version else None
+        kind = "yanked versions" if yanked else "versions"
+
+        if not versions and offset > 0 and total > 0:
+            self._console.print(
+                f"[dim]No {kind} at offset {offset} for"
+                f" {safe_name} (total: {total})[/dim]"
+            )
+            return
 
         # -- Header ----------------------------------------------------------
         header = self._versions_header(
             safe_name,
             showing,
             total,
-            latest,
+            safe_latest,
             matching,
             original_total,
-            all_yanked=all_yanked,
+            offset=offset,
+            yanked=yanked,
         )
         self._console.print(f"[bold]{header}[/bold]")
 
@@ -570,7 +599,7 @@ class RichRenderer(Renderer):
             return
 
         # -- Grid body -------------------------------------------------------
-        cells = self._build_versions_cells(versions, all_yanked=all_yanked)
+        cells = self._build_versions_cells(versions, yanked=yanked)
         # 2 = left indent padding
         grid = self._layout_text_grid(cells, available_width=self._console.width - 2)
         self._console.print(Padding(grid, (0, 0, 0, 2)))
@@ -595,15 +624,18 @@ class RichRenderer(Renderer):
         matching: str | None,
         original_total: int | None,
         *,
-        all_yanked: bool = False,
+        offset: int = 0,
+        yanked: bool = False,
     ) -> str:
         """Build the header line for `render_versions`."""
-        kind = "yanked versions" if all_yanked else "versions"
+        kind = "yanked versions" if yanked else "versions"
+        truncated = (offset + showing) < total
 
         if matching and original_total is not None:
-            if showing < total:
+            if truncated or offset > 0:
+                range_label = _rich_range_label(showing, total, offset)
                 core = (
-                    f"{safe_name} {kind} (showing {showing} of {total}"
+                    f"{safe_name} {kind} ({range_label}"
                     f" matching {rich_escape(matching)};"
                     f" {original_total} total"
                 )
@@ -612,10 +644,9 @@ class RichRenderer(Renderer):
                     f"{safe_name} {kind} ({total} of {original_total}"
                     f" matching {rich_escape(matching)}"
                 )
-        elif showing < total:
-            core = f"{safe_name} {kind} (showing {showing} of {total}"
         else:
-            core = f"{safe_name} {kind} ({total}"
+            range_label = _rich_range_label(showing, total, offset)
+            core = f"{safe_name} {kind} ({range_label}"
 
         suffix = f", latest: {latest}" if latest else ""
         return f"{core}{suffix}):"
@@ -777,6 +808,7 @@ class RichRenderer(Renderer):
         entries: list[LsEntry],
         total: int,
         *,
+        offset: int = 0,
         prefix: str | None = None,
         recursive: bool = False,  # noqa: ARG002
         glob_patterns: list[str] | None = None,
@@ -784,10 +816,17 @@ class RichRenderer(Renderer):
         """Render archive directory listing as a table."""
         safe_name = rich_escape(name)
         safe_version = rich_escape(version)
+        showing = len(entries)
 
         if not entries:
             prefix_label = f" under {rich_escape(prefix)}" if prefix else ""
-            if glob_patterns:
+            if offset > 0 and total > 0:
+                self._console.print(
+                    f"[dim]No entries at offset {offset} for"
+                    f" {safe_name} {safe_version}{prefix_label}"
+                    f" (total: {total})[/dim]"
+                )
+            elif glob_patterns:
                 patterns = ", ".join(rich_escape(p) for p in glob_patterns)
                 self._console.print(
                     f"[dim]No files matched glob {patterns}"
@@ -800,9 +839,7 @@ class RichRenderer(Renderer):
             return
 
         # Build title with optional truncation and prefix info
-        count_label = (
-            f"showing {len(entries)} of {total}" if len(entries) < total else str(total)
-        )
+        count_label = _rich_range_label(showing, total, offset)
         prefix_label = f" under {rich_escape(prefix)}" if prefix else ""
         title = f"Archive contents for {safe_name} {safe_version}{prefix_label} ({count_label})"
         if glob_patterns:

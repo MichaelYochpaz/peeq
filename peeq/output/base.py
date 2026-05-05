@@ -417,16 +417,19 @@ class Renderer(ABC):
         ...
 
     @abstractmethod
-    def render_versions(
+    def render_versions(  # noqa: PLR0913
         self,
         name: str,
         versions: list[VersionInfo],
         total: int,
         *,
+        offset: int = 0,
+        latest_version: str | None = None,
+        yanked: bool = False,
         matching: str | None = None,
         original_total: int | None = None,
     ) -> None:
-        """Render a version list (possibly limited by `--limit`)."""
+        """Render a version list (possibly windowed by `--offset`/`--limit`)."""
         ...
 
     @abstractmethod
@@ -472,6 +475,7 @@ class Renderer(ABC):
         entries: list[LsEntry],
         total: int,
         *,
+        offset: int = 0,
         prefix: str | None = None,
         recursive: bool = False,
         glob_patterns: list[str] | None = None,

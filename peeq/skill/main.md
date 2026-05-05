@@ -70,15 +70,17 @@ Agent output groups dependencies in `<required>` and `<optional>` tags inside `<
 ```sh
 peeq versions requests --matching ">=2.28,<3" --pre --format agent
 peeq versions requests --yanked --format agent
+peeq versions requests --offset 40 --format agent
 ```
 
 - `--limit N` — Maximum versions to show (default 40).
 - `--all` — Show all versions (no limit). Cannot combine with `--limit`.
+- `--offset N` — Skip the first N versions (default 0). Applied after filtering, before `--limit`. Can combine with `--all`.
 - `--matching <specifier>` — Version filter (e.g., `">=2.0,<3"`).
 - `--pre` — Include pre-releases. Requires `--matching`.
 - `--yanked` — Show only yanked versions with their reasons.
 
-When agent output shows `truncated="true"` on the `<versions>` tag, use `--all` to see all versions, or `--matching` to narrow by specifier.
+Check the `offset`, `showing`, `total`, and `truncated` attributes in agent output. When `truncated="true"`, use `--all` to see all versions, `--matching` to narrow by specifier, or `--offset N` to paginate through results.
 
 ### Artifacts
 
@@ -112,6 +114,7 @@ peeq ls requests -g "test_*" --prefix tests/ --format agent
 - `-g`, `--glob PATTERN` — Recursively search for files matching a glob pattern (implies `-r`). Repeatable with OR semantics. Always quote the pattern to prevent shell expansion.
 - `--limit N` — Maximum entries to show (default 50).
 - `--all` — Show all entries (no limit). Cannot combine with `--limit`.
+- `--offset N` — Skip the first N entries (default 0). Applied after filtering, before `--limit`. Can combine with `--all`.
 
 Glob matching:
 
@@ -119,7 +122,7 @@ Glob matching:
 - `src/*.py` (contains `/`) matches the full path. `*` stays within one segment; use `**` for recursive descent: `src/**/*.py`.
 - With `--prefix`, patterns match the prefix-relative path. `--prefix src/ -g "pkg/*.py"` is equivalent to `-g "src/pkg/*.py"`.
 
-Check the `showing`, `total`, `truncated`, and `globs` attributes in agent output. When `globs` is present, results are filtered — an empty result means no files matched, not an empty archive. If `truncated="true"`, narrow results with `--prefix` to explore a specific directory, use `--glob` to filter by pattern, or use `--all` to see all entries.
+Check the `offset`, `showing`, `total`, `truncated`, and `globs` attributes in agent output. When `globs` is present, results are filtered — an empty result means no files matched, not an empty archive. If `truncated="true"`, narrow results with `--prefix` to explore a specific directory, use `--glob` to filter by pattern, use `--offset N` to paginate, or use `--all` to see all entries.
 
 ### File Content
 

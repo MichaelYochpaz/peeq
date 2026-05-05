@@ -363,10 +363,10 @@ class TestRenderVersions:
         assert 'truncated="true"' in out
 
     def test_all_yanked_type_attribute(self) -> None:
-        """All-yanked list uses type attribute, no inline suffix."""
+        """Yanked-filter mode uses type attribute, no inline suffix."""
         r, s = _renderer()
         versions = [VersionInfo(version=Version("1.0.0"), yanked=True)]
-        r.render_versions("pkg", versions, total=1)
+        r.render_versions("pkg", versions, total=1, yanked=True)
         out = s.getvalue()
         assert 'type="yanked"' in out
         assert "- 1.0.0\n" in out  # no (yanked) suffix
@@ -381,6 +381,19 @@ class TestRenderVersions:
         r.render_versions("pkg", versions, total=2)
         out = s.getvalue()
         assert 'type="yanked"' not in out
+        assert "- 1.0.0 (yanked)" in out
+
+    def test_all_yanked_window_without_flag(self) -> None:
+        """All-yanked window without --yanked has no type attr but has inline markers."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(version=Version("1.1.0"), yanked=True),
+            VersionInfo(version=Version("1.0.0"), yanked=True),
+        ]
+        r.render_versions("pkg", versions, total=5, offset=3)
+        out = s.getvalue()
+        assert 'type="yanked"' not in out
+        assert "- 1.1.0 (yanked)" in out
         assert "- 1.0.0 (yanked)" in out
 
     def test_yanked_with_reason(self) -> None:
@@ -412,6 +425,65 @@ class TestRenderVersions:
         assert "(yanked: security fix)" in out
         # Bare (yanked) must NOT appear — reason takes precedence
         assert "(yanked) " not in out
+
+
+# ---------------------------------------------------------------------------
+# Tests: render_versions with offset
+# ---------------------------------------------------------------------------
+
+
+class TestRenderVersionsOffset:
+    """Test offset pagination fields in agent versions output."""
+
+    def test_offset_attribute_present(self) -> None:
+        """Offset value appears in the versions tag."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("2.0.0"))]
+        r.render_versions("pkg", versions, total=10, offset=5)
+        out = s.getvalue()
+        assert 'offset="5"' in out
+        assert 'showing="1"' in out
+        assert 'total="10"' in out
+
+    def test_offset_zero_default(self) -> None:
+        """Offset defaults to 0 in the versions tag."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        r.render_versions("pkg", versions, total=1)
+        out = s.getvalue()
+        assert 'offset="0"' in out
+
+    def test_truncated_with_offset(self) -> None:
+        """Truncated uses offset+showing < total."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        r.render_versions("pkg", versions, total=10, offset=8)
+        out = s.getvalue()
+        assert 'truncated="true"' in out
+
+    def test_not_truncated_last_page(self) -> None:
+        """Last page: offset+showing == total is not truncated."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        r.render_versions("pkg", versions, total=10, offset=9)
+        out = s.getvalue()
+        assert 'truncated="false"' in out
+
+    def test_offset_beyond_total(self) -> None:
+        """Offset beyond total shows explanatory message."""
+        r, s = _renderer()
+        r.render_versions("pkg", [], total=12, offset=99999)
+        out = s.getvalue()
+        assert "No versions at offset 99999" in out
+        assert "total: 12" in out
+
+    def test_offset_beyond_total_with_yanked(self) -> None:
+        """Offset beyond total in yanked mode shows offset message."""
+        r, s = _renderer()
+        r.render_versions("pkg", [], total=5, offset=99999, yanked=True)
+        out = s.getvalue()
+        assert "No versions at offset 99999" in out
+        assert "total: 5" in out
 
 
 # ---------------------------------------------------------------------------
@@ -1551,6 +1623,29 @@ class TestRenderLsGlob:
         out = s.getvalue()
         assert "globs=" in out
         assert "No files matched glob" in out
+        assert "Archive is empty" not in out
+
+    def test_glob_offset_beyond_total(self) -> None:
+        """Glob with offset beyond matched results shows offset message."""
+        r, s = _renderer()
+        r.render_ls("pkg", "1.0.0", [], total=34, offset=99999, glob_patterns=["*.py"])
+        out = s.getvalue()
+        assert "No entries at offset 99999" in out
+        assert "total: 34" in out
+        assert "No files matched glob" not in out
+        assert "Archive is empty" not in out
+
+
+class TestRenderLsOffset:
+    """Test offset-related empty-state messages in agent rendering."""
+
+    def test_offset_beyond_total(self) -> None:
+        """Offset beyond total shows offset message, not archive-empty."""
+        r, s = _renderer()
+        r.render_ls("pkg", "1.0.0", [], total=12, offset=99999)
+        out = s.getvalue()
+        assert "No entries at offset 99999" in out
+        assert "total: 12" in out
         assert "Archive is empty" not in out
 
 

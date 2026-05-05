@@ -56,12 +56,15 @@ class JSONRenderer(Renderer):
         }
         self._output(data)
 
-    def render_versions(
+    def render_versions(  # noqa: PLR0913
         self,
         name: str,
         versions: list[VersionInfo],
         total: int,
         *,
+        offset: int = 0,
+        latest_version: str | None = None,
+        yanked: bool = False,  # noqa: ARG002
         matching: str | None = None,
         original_total: int | None = None,
     ) -> None:
@@ -78,10 +81,13 @@ class JSONRenderer(Renderer):
                 }
                 for version in versions
             ],
+            "offset": offset,
             "showing": showing,
             "total": total,
-            "truncated": showing < total,
+            "truncated": (offset + showing) < total,
         }
+        if latest_version is not None:
+            data["latest_version"] = latest_version
         if matching is not None:
             data["matching"] = matching
             data["matched"] = total
@@ -251,6 +257,7 @@ class JSONRenderer(Renderer):
         entries: list[LsEntry],
         total: int,
         *,
+        offset: int = 0,
         prefix: str | None = None,
         recursive: bool = False,
         glob_patterns: list[str] | None = None,
@@ -276,6 +283,7 @@ class JSONRenderer(Renderer):
                         "size": entry.size,
                     }
                 )
+        showing = len(entries)
         self._output(
             {
                 "command": "ls",
@@ -284,9 +292,10 @@ class JSONRenderer(Renderer):
                 "recursive": recursive,
                 "prefix": prefix,
                 "globs": glob_patterns,
-                "showing": len(entries),
+                "offset": offset,
+                "showing": showing,
                 "total": total,
-                "truncated": len(entries) < total,
+                "truncated": (offset + showing) < total,
                 "entries": entries_list,
             }
         )

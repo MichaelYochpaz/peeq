@@ -20,6 +20,7 @@ peeq versions <package> [options]
 |--------|------|---------|-------------|
 | `--limit` | integer | 40 | Maximum number of versions to show. |
 | `--all` | flag | off | Show all versions (no limit). |
+| `--offset` | integer | 0 | Skip the first N versions before applying `--limit`. |
 | `--yanked` | flag | off | Show only yanked versions with their yank reasons. |
 | `--matching` | string | -- | PEP 440 version specifier to filter versions (e.g., `">=2.0,<3"`). |
 | `--pre`, `--prerelease` | flag | off | Include pre-release versions when using `--matching`. |
@@ -28,6 +29,7 @@ peeq versions <package> [options]
 
 - `--all` and `--limit` cannot be used together.
 - `--limit` must be non-negative.
+- `--offset` must be non-negative. Applied after filtering (`--matching`, `--yanked`), before `--limit`. Can combine with `--all` to skip N versions and show the rest.
 - `--pre` requires `--matching`. Pre-release filtering only applies when a specifier is active.
 
 ### PEP 440 specifiers
@@ -75,6 +77,20 @@ requests versions (showing 5 of 156):
   - 2.32.4 (2025-06-09)
   - 2.32.3 (2024-05-29)
 ```
+
+### Paginate with offset
+
+```
+$ peeq versions requests --limit 5 --offset 5
+requests versions (showing 6–10 of 156):
+  - 2.32.3 (2024-05-29)
+  - 2.32.2 (2024-05-21)
+  - 2.32.1 (2024-05-20) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation )
+  - 2.32.0 (2024-05-20) (yanked: Yanked due to conflicts with CVE-2024-35195 mitigation)
+  - 2.31.0 (2023-05-22)
+```
+
+Use `--offset` to skip results and paginate through the version list. The header shows the current range (e.g., "showing 6–10 of 156").
 
 ### Filter with a version specifier
 

@@ -801,6 +801,67 @@ class TestRenderDepsDiff:
 
 
 # ---------------------------------------------------------------------------
+# Tests: render_versions with offset
+# ---------------------------------------------------------------------------
+
+
+class TestRenderVersionsOffset:
+    """Test offset pagination fields in versions JSON output."""
+
+    def test_offset_field_present(self) -> None:
+        """Offset value appears in JSON output."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("2.31.0"))]
+        r.render_versions("pkg", versions, total=10, offset=5)
+        data = _parse(s)
+        assert data["offset"] == 5
+        assert data["showing"] == 1
+        assert data["total"] == 10
+
+    def test_offset_zero_default(self) -> None:
+        """Offset defaults to 0 in JSON output."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        r.render_versions("pkg", versions, total=1)
+        data = _parse(s)
+        assert data["offset"] == 0
+
+    def test_truncated_with_offset(self) -> None:
+        """Truncated correctly uses offset+showing < total."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        # offset=8, showing=1, total=10 → 8+1 < 10 → truncated
+        r.render_versions("pkg", versions, total=10, offset=8)
+        data = _parse(s)
+        assert data["truncated"] is True
+
+    def test_not_truncated_last_page(self) -> None:
+        """Last page: offset+showing == total → not truncated."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        # offset=9, showing=1, total=10 → not truncated
+        r.render_versions("pkg", versions, total=10, offset=9)
+        data = _parse(s)
+        assert data["truncated"] is False
+
+    def test_latest_version_field(self) -> None:
+        """latest_version appears in JSON when passed."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("2.0.0"))]
+        r.render_versions("pkg", versions, total=5, offset=3, latest_version="5.0.0")
+        data = _parse(s)
+        assert data["latest_version"] == "5.0.0"
+
+    def test_latest_version_absent_when_none(self) -> None:
+        """latest_version is omitted from JSON when not passed."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        r.render_versions("pkg", versions, total=1)
+        data = _parse(s)
+        assert "latest_version" not in data
+
+
+# ---------------------------------------------------------------------------
 # Tests: render_versions with matching filter
 # ---------------------------------------------------------------------------
 
@@ -930,6 +991,46 @@ class TestRenderLs:
         assert data["entries"] == []
         assert data["showing"] == 0
         assert data["total"] == 0
+
+
+class TestRenderLsOffset:
+    """Test offset pagination fields in ls JSON output."""
+
+    def test_offset_field_present(self) -> None:
+        """Offset value appears in JSON output."""
+        r, s = _renderer()
+        entries = [_ls_entry(path="a.py", is_dir=False, size=10)]
+        r.render_ls("pkg", "1.0.0", entries, total=10, offset=5)
+        data = _parse(s)
+        assert data["offset"] == 5
+        assert data["showing"] == 1
+        assert data["total"] == 10
+
+    def test_offset_zero_default(self) -> None:
+        """Offset defaults to 0 in JSON output."""
+        r, s = _renderer()
+        entries = [_ls_entry(path="a.py", is_dir=False, size=10)]
+        r.render_ls("pkg", "1.0.0", entries, total=1)
+        data = _parse(s)
+        assert data["offset"] == 0
+
+    def test_truncated_with_offset(self) -> None:
+        """Truncated is based on offset+showing < total."""
+        r, s = _renderer()
+        entries = [_ls_entry(path="a.py", is_dir=False, size=10)]
+        # offset=8, showing=1, total=10 → 8+1 < 10 → truncated
+        r.render_ls("pkg", "1.0.0", entries, total=10, offset=8)
+        data = _parse(s)
+        assert data["truncated"] is True
+
+    def test_not_truncated_last_page(self) -> None:
+        """Last page: offset+showing == total → not truncated."""
+        r, s = _renderer()
+        entries = [_ls_entry(path="a.py", is_dir=False, size=10)]
+        # offset=9, showing=1, total=10 → 9+1 == 10 → not truncated
+        r.render_ls("pkg", "1.0.0", entries, total=10, offset=9)
+        data = _parse(s)
+        assert data["truncated"] is False
 
 
 class TestRenderLsRecursive:

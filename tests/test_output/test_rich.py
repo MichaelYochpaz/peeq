@@ -356,7 +356,7 @@ class TestRenderVersions:
             VersionInfo(version=Version("2.31.0")),
             VersionInfo(version=Version("2.30.0")),
         ]
-        r.render_versions("requests", versions, total=2)
+        r.render_versions("requests", versions, total=2, latest_version="2.31.0")
         out = s.getvalue()
         assert "latest: 2.31.0" in out
 
@@ -396,6 +396,26 @@ class TestRenderVersions:
         versions = [VersionInfo(version=Version("1.0.0"))]
         r.render_versions("pkg", versions, total=1)
         assert "Yanked:" not in s.getvalue()
+
+    def test_offset_beyond_total_message(self) -> None:
+        """Offset beyond total shows explanatory message, not bare header."""
+        r, s = _renderer()
+        r.render_versions("requests", [], total=157, offset=99999)
+        out = s.getvalue()
+        assert "No versions at offset 99999" in out
+        assert "total: 157" in out
+
+    def test_all_yanked_window_without_flag(self) -> None:
+        """All-yanked window without --yanked uses normal header + strikethrough."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(version=Version("1.1.0"), yanked=True),
+            VersionInfo(version=Version("1.0.0"), yanked=True),
+        ]
+        r.render_versions("pkg", versions, total=5, offset=3)
+        out = s.getvalue()
+        assert "yanked versions" not in out
+        assert "pkg versions" in out
 
     def test_release_date_shown(self) -> None:
         """Release date appears in the grid output."""
@@ -1269,6 +1289,28 @@ class TestRenderLsGlob:
         out = s.getvalue()
         assert "No files matched glob" in out
         assert "*.rs" in out
+        assert "Archive is empty" not in out
+
+    def test_glob_offset_beyond_total(self) -> None:
+        """Glob with offset beyond matched results shows offset message."""
+        r, s = _renderer()
+        r.render_ls("pkg", "1.0.0", [], total=34, offset=99999, glob_patterns=["*.py"])
+        out = s.getvalue()
+        assert "No entries at offset 99999" in out
+        assert "total: 34" in out
+        assert "No files matched glob" not in out
+
+
+class TestRenderLsOffset:
+    """Test offset-related empty-state messages in Rich rendering."""
+
+    def test_offset_beyond_total(self) -> None:
+        """Offset beyond total shows offset message, not empty archive."""
+        r, s = _renderer()
+        r.render_ls("pkg", "1.0.0", [], total=12, offset=99999)
+        out = s.getvalue()
+        assert "No entries at offset 99999" in out
+        assert "total: 12" in out
         assert "Archive is empty" not in out
 
 

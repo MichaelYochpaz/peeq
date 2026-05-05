@@ -307,12 +307,15 @@ class AgentRenderer(Renderer):
         self._writeln("</package-info>")
         self._write_data_close()
 
-    def render_versions(
+    def render_versions(  # noqa: PLR0913
         self,
         name: str,
         versions: list[VersionInfo],
         total: int,
         *,
+        offset: int = 0,
+        latest_version: str | None = None,
+        yanked: bool = False,
         matching: str | None = None,
         original_total: int | None = None,
     ) -> None:
@@ -320,29 +323,33 @@ class AgentRenderer(Renderer):
         self._write_data_open()
         showing = len(versions)
         registry_total = original_total if original_total is not None else total
-        truncated = "true" if showing < total else "false"
-        all_yanked = bool(versions) and all(v.yanked for v in versions)
+        truncated = "true" if (offset + showing) < total else "false"
 
         attrs = (
             f"<versions package={escape_xml_attr(name)}"
-            f' showing="{showing}" total="{registry_total}"'
+            f' offset="{offset}" showing="{showing}" total="{registry_total}"'
             f' truncated="{truncated}"'
         )
-        if all_yanked:
+        if latest_version is not None:
+            attrs += f" latest={escape_xml_attr(latest_version)}"
+        if yanked:
             attrs += ' type="yanked"'
         if matching is not None and original_total is not None:
             attrs += f' matching={escape_xml_attr(matching)} matched="{total}"'
         self._writeln(f"{attrs}>")
 
-        for version in versions:
-            suffix = ""
-            # Show (yanked) only when the list is mixed; when all
-            # versions are yanked the type attribute conveys it.
-            if version.yanked and not all_yanked:
-                suffix = " (yanked)"
-            if version.yanked_reason:
-                suffix = f" (yanked: {escape_xml(version.yanked_reason)})"
-            self._writeln(f"- {escape_xml(str(version.version))}{suffix}")
+        if not versions and offset > 0 and total > 0:
+            self._writeln(f"No versions at offset {offset} (total: {total}).")
+        else:
+            for version in versions:
+                suffix = ""
+                # Show (yanked) only when not in yanked-filter mode; when
+                # --yanked is active the type attribute conveys it.
+                if version.yanked and not yanked:
+                    suffix = " (yanked)"
+                if version.yanked_reason:
+                    suffix = f" (yanked: {escape_xml(version.yanked_reason)})"
+                self._writeln(f"- {escape_xml(str(version.version))}{suffix}")
         self._writeln("</versions>")
         self._write_data_close()
 
@@ -524,17 +531,20 @@ class AgentRenderer(Renderer):
         entries: list[LsEntry],
         total: int,
         *,
+        offset: int = 0,
         prefix: str | None = None,
         recursive: bool = False,
         glob_patterns: list[str] | None = None,
     ) -> None:
         """Render archive directory listing inside XML tags."""
         self._write_data_open()
+        showing = len(entries)
+        truncated = "true" if (offset + showing) < total else "false"
         attrs = (
             f"<archive-contents package={escape_xml_attr(name)}"
             f" version={escape_xml_attr(version)}"
-            f' showing="{len(entries)}" total="{total}"'
-            f' truncated="{"true" if len(entries) < total else "false"}"'
+            f' offset="{offset}" showing="{showing}" total="{total}"'
+            f' truncated="{truncated}"'
             f' recursive="{"true" if recursive else "false"}"'
         )
         if prefix is not None:
@@ -545,7 +555,9 @@ class AgentRenderer(Renderer):
         self._writeln(f"{attrs}>")
 
         if not entries:
-            if glob_patterns:
+            if offset > 0 and total > 0:
+                self._writeln(f"No entries at offset {offset} (total: {total}).")
+            elif glob_patterns:
                 patterns = ", ".join(glob_patterns)
                 self._writeln(f"No files matched glob: {escape_xml(patterns)}")
             else:

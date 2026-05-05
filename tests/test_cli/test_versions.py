@@ -472,6 +472,160 @@ class TestDefaultLimit:
 
 
 # ---------------------------------------------------------------------------
+# Tests: --offset flag
+# ---------------------------------------------------------------------------
+
+
+class TestOffset:
+    """Test that `--offset` skips items before applying `--limit`."""
+
+    async def test_offset_skips_items(self) -> None:
+        """`--offset 2` skips the first two versions."""
+        all_versions = _make_versions("5.0.0", "4.0.0", "3.0.0", "2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", offset=2, limit=2, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        rendered_strs = [str(v.version) for v in rendered_versions]
+        assert rendered_strs == ["3.0.0", "2.0.0"]
+
+    async def test_offset_with_default_limit(self) -> None:
+        """`--offset` with default limit skips items and applies default cap."""
+        count = _DEFAULT_VERSION_LIMIT + 10
+        all_versions = _make_versions(*(f"{i}.0.0" for i in range(count, 0, -1)))
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", offset=5, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        total = renderer.render_versions.call_args.args[2]
+
+        assert total == count
+        assert len(rendered_versions) == _DEFAULT_VERSION_LIMIT
+        # First displayed version should be the 6th (index 5)
+        assert str(rendered_versions[0].version) == f"{count - 5}.0.0"
+
+    async def test_offset_with_all(self) -> None:
+        """`--all --offset N` shows everything from offset onward."""
+        all_versions = _make_versions("5.0.0", "4.0.0", "3.0.0", "2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", show_all=True, offset=3, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        rendered_strs = [str(v.version) for v in rendered_versions]
+        assert rendered_strs == ["2.0.0", "1.0.0"]
+
+    async def test_offset_beyond_total(self) -> None:
+        """`--offset` beyond total produces an empty display list."""
+        all_versions = _make_versions("2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", offset=10, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        total = renderer.render_versions.call_args.args[2]
+        assert len(rendered_versions) == 0
+        assert total == 2
+
+    async def test_negative_offset_rejected(self) -> None:
+        """Negative `--offset` renders an error and exits."""
+        renderer = _make_renderer()
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            await versions("testpkg", offset=-1, pre=False)
+
+        renderer.render_error.assert_called_once_with("--offset must be non-negative")
+
+    async def test_offset_zero_is_noop(self) -> None:
+        """`--offset 0` behaves identically to no offset."""
+        all_versions = _make_versions("3.0.0", "2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", offset=0, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        assert len(rendered_versions) == 3
+
+    async def test_offset_with_matching(self) -> None:
+        """`--offset` applies AFTER `--matching` filtering."""
+        all_versions = _make_versions("5.0.0", "4.0.0", "3.0.0", "2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", matching=">=3.0.0", offset=1, limit=2, pre=False)
+
+        rendered_versions = renderer.render_versions.call_args.args[1]
+        rendered_strs = [str(v.version) for v in rendered_versions]
+        # Matched: 5.0.0, 4.0.0, 3.0.0 → offset 1 → 4.0.0, 3.0.0
+        assert rendered_strs == ["4.0.0", "3.0.0"]
+
+    async def test_offset_passed_to_renderer(self) -> None:
+        """`offset` kwarg is forwarded to the renderer."""
+        all_versions = _make_versions("3.0.0", "2.0.0", "1.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", offset=1, pre=False)
+
+        call_kwargs = renderer.render_versions.call_args.kwargs
+        assert call_kwargs["offset"] == 1
+
+    async def test_latest_version_passed_to_renderer(self) -> None:
+        """`latest_version` kwarg reflects the first version before slicing."""
+        all_versions = _make_versions("5.0.0", "4.0.0", "3.0.0")
+        renderer = _make_renderer()
+        service = _make_service(all_versions)
+
+        with (
+            patch("peeq.cli._get_renderer", return_value=renderer),
+            patch("peeq.cli._open_service", return_value=_AsyncCtx(service)),
+        ):
+            await versions("testpkg", offset=2, pre=False)
+
+        call_kwargs = renderer.render_versions.call_args.kwargs
+        # latest_version should be 5.0.0 regardless of offset
+        assert call_kwargs["latest_version"] == "5.0.0"
+
+
+# ---------------------------------------------------------------------------
 # Async context manager helper
 # ---------------------------------------------------------------------------
 

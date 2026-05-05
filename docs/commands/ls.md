@@ -22,6 +22,7 @@ peeq ls <package> [options]
 | `--version` | string | latest | Specific version to inspect. |
 | `--limit` | integer | 50 | Maximum entries to show. |
 | `--all` | flag | — | Show all entries (no limit). |
+| `--offset` | integer | 0 | Skip the first N entries before applying `--limit`. |
 | `--prefix` | string | — | Show entries under this path (e.g., `src/`). |
 | `-r`, `--recursive` | flag | — | Flat recursive file listing. |
 | `-g`, `--glob` | string | — | Recursively search for files matching a glob pattern (implies `-r`). Repeatable with OR semantics. |
@@ -29,6 +30,7 @@ peeq ls <package> [options]
 ## Notes
 
 - Shows up to 50 entries by default. Use `--all` to show all entries.
+- `--offset` skips entries after filtering (`--prefix`, `--glob`), before `--limit`. Can combine with `--all` to skip N entries and show the rest.
 - Paths shown are archive-relative — use them directly with `cat`.
 - In non-recursive mode (default), directories are shown with file counts and subdirectory counts.
 
@@ -100,6 +102,12 @@ peeq ls requests --prefix src/ -r --all
 
 ```bash
 peeq ls requests --version 2.28.0
+```
+
+### Paginate with offset
+
+```bash
+peeq ls requests -r --limit 20 --offset 20
 ```
 
 ## See also

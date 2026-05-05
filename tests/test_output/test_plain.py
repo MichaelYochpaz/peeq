@@ -249,7 +249,7 @@ class TestRenderVersions:
             VersionInfo(version=Version("2.31.0")),
             VersionInfo(version=Version("2.30.0")),
         ]
-        r.render_versions("requests", versions, total=2)
+        r.render_versions("requests", versions, total=2, latest_version="2.31.0")
         out = s.getvalue()
         assert "requests versions (2):" in out
         assert "- 2.31.0 (latest)" in out
@@ -264,10 +264,10 @@ class TestRenderVersions:
         assert "showing 1 of 142" in out
 
     def test_all_yanked_header(self) -> None:
-        """All-yanked list uses 'yanked versions' header, no inline suffix."""
+        """Yanked-filter mode uses 'yanked versions' header, no inline suffix."""
         r, s = _renderer()
         versions = [VersionInfo(version=Version("1.0.0"), yanked=True)]
-        r.render_versions("pkg", versions, total=1)
+        r.render_versions("pkg", versions, total=1, yanked=True)
         out = s.getvalue()
         assert "yanked versions" in out
         assert "(yanked)" not in out
@@ -284,6 +284,28 @@ class TestRenderVersions:
         assert "yanked versions" not in out
         assert "(yanked)" in out
 
+    def test_all_yanked_window_without_flag(self) -> None:
+        """All-yanked window without --yanked uses normal header + inline markers."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(version=Version("1.1.0"), yanked=True),
+            VersionInfo(version=Version("1.0.0"), yanked=True),
+        ]
+        r.render_versions("pkg", versions, total=5, offset=3)
+        out = s.getvalue()
+        assert "yanked versions" not in out
+        assert "pkg versions" in out
+        assert "(yanked)" in out
+
+    def test_offset_beyond_total_message(self) -> None:
+        """Offset beyond total shows explanatory message, not bare header."""
+        r, s = _renderer()
+        r.render_versions("requests", [], total=157, offset=99999)
+        out = s.getvalue()
+        assert "No versions at offset 99999" in out
+        assert "total: 157" in out
+        assert "Next" not in out
+
     def test_release_date_shown(self) -> None:
         """Release date appears in parentheses after the version."""
         r, s = _renderer()
@@ -297,7 +319,7 @@ class TestRenderVersions:
         r, s = _renderer()
         dt = datetime(2025, 6, 15, tzinfo=timezone.utc)
         versions = [VersionInfo(version=Version("1.0.0"), release_date=dt)]
-        r.render_versions("pkg", versions, total=1)
+        r.render_versions("pkg", versions, total=1, latest_version="1.0.0")
         assert "1.0.0 (2025-06-15) (latest)" in s.getvalue()
 
     def test_yanked_with_reason(self) -> None:
@@ -1098,6 +1120,28 @@ class TestRenderLsGlob:
         assert "No files matched glob" in out
         assert "*.rs" in out
         assert "(0 entries):" not in out
+
+    def test_glob_offset_beyond_total(self) -> None:
+        """Glob with offset beyond matched results shows offset message, not glob message."""
+        r, s = _renderer()
+        r.render_ls("pkg", "1.0.0", [], total=34, offset=99999, glob_patterns=["*.py"])
+        out = s.getvalue()
+        assert "No entries at offset 99999" in out
+        assert "total: 34" in out
+        assert "No files matched glob" not in out
+
+
+class TestRenderLsOffset:
+    """Test offset-related empty-state messages in plain rendering."""
+
+    def test_offset_beyond_total(self) -> None:
+        """Offset beyond total shows explanatory message, not bare header."""
+        r, s = _renderer()
+        r.render_ls("pkg", "1.0.0", [], total=12, offset=99999)
+        out = s.getvalue()
+        assert "No entries at offset 99999" in out
+        assert "total: 12" in out
+        assert "Archive contents" not in out
 
 
 # ---------------------------------------------------------------------------

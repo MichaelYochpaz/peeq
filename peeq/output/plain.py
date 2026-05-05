@@ -83,6 +83,24 @@ def _write_why_path(
         writeln(f"{base}{guide}{label}")
 
 
+def _plain_range_label(showing: int, total: int, offset: int = 0) -> str:
+    """Build a human-readable range label for windowed output.
+
+    Uses 1-based inclusive ranges when offset > 0 (e.g. `"showing 41-80 of 200"`).
+    Falls back to the simpler `"showing N of M"` / `"N"` form
+    when offset is 0 for backward-compatible display.
+    """
+    if offset > 0:
+        if showing == 0:
+            return f"showing 0 of {total}"
+        start = offset + 1
+        end = offset + showing
+        return f"showing {start}-{end} of {total}"
+    if showing < total:
+        return f"showing {showing} of {total}"
+    return str(total)
+
+
 class PlainRenderer(Renderer):
     """Plain text renderer for non-interactive environments.
 
@@ -144,6 +162,7 @@ class PlainRenderer(Renderer):
                 report.versions_total
                 if report.versions_total is not None
                 else len(report.versions),
+                latest_version=str(info.latest_version),
             )
 
         # -- Version details section ----------------------------------------
@@ -179,26 +198,36 @@ class PlainRenderer(Renderer):
             for section, message in report.errors.items():
                 self._writeln(f"Error ({self._safe(section)}): {self._safe(message)}")
 
-    def render_versions(
+    def render_versions(  # noqa: PLR0913
         self,
         name: str,
         versions: list[VersionInfo],
         total: int,
         *,
+        offset: int = 0,
+        latest_version: str | None = None,
+        yanked: bool = False,
         matching: str | None = None,
         original_total: int | None = None,
     ) -> None:
         """Render version list as a dash list."""
         safe_name = self._safe(name)
         showing = len(versions)
-        all_yanked = bool(versions) and all(v.yanked for v in versions)
-        kind = "yanked versions" if all_yanked else "versions"
+        kind = "yanked versions" if yanked else "versions"
 
+        if not versions and offset > 0 and total > 0:
+            self._writeln(
+                f"No {kind} at offset {offset} for {safe_name} (total: {total})."
+            )
+            return
+
+        has_more = (offset + showing) < total
         if matching and original_total is not None:
-            if showing < total:
+            if has_more or offset > 0:
+                range_label = _plain_range_label(showing, total, offset)
                 header = (
                     f"{safe_name} {kind}"
-                    f" (showing {showing} of {total}"
+                    f" ({range_label}"
                     f" matching {self._safe(matching)};"
                     f" {original_total} total):"
                 )
@@ -208,24 +237,25 @@ class PlainRenderer(Renderer):
                     f" ({total} of {original_total}"
                     f" matching {self._safe(matching)}):"
                 )
-        elif showing < total:
-            header = f"{safe_name} {kind} (showing {showing} of {total}):"
         else:
-            header = f"{safe_name} {kind} ({total}):"
+            range_label = _plain_range_label(showing, total, offset)
+            header = f"{safe_name} {kind} ({range_label}):"
 
         self._writeln(header)
-        for i, version in enumerate(versions):
+        for version in versions:
             label = f"  - {self._safe(str(version.version))}"
             if version.release_date:
                 label += f" ({version.release_date:%Y-%m-%d})"
-            if i == 0:
+            # Mark the latest version using the pre-computed value,
+            # which stays correct regardless of offset.
+            if latest_version and str(version.version) == latest_version:
                 label += " (latest)"
-            # Show (yanked) only when the list is mixed; when all
-            # versions are yanked the header already conveys it.
+            # Show (yanked) only when not in yanked-filter mode; when
+            # --yanked is active the header already conveys it.
             # (yanked: reason) takes precedence over bare (yanked).
             if version.yanked_reason:
                 label += f" (yanked: {self._safe(version.yanked_reason)})"
-            elif version.yanked and not all_yanked:
+            elif version.yanked and not yanked:
                 label += " (yanked)"
             self._writeln(label)
 
@@ -396,6 +426,7 @@ class PlainRenderer(Renderer):
         entries: list[LsEntry],
         total: int,
         *,
+        offset: int = 0,
         prefix: str | None = None,
         recursive: bool = False,  # noqa: ARG002
         glob_patterns: list[str] | None = None,
@@ -403,23 +434,35 @@ class PlainRenderer(Renderer):
         """Render archive directory listing as a dash list."""
         safe_name = self._safe(name)
         safe_version = self._safe(version)
+        showing = len(entries)
 
         # Build header
-        count_label = (
-            f"{len(entries)} of {total} entries"
-            if len(entries) < total
-            else f"{total} entries"
-        )
+        count_label = _plain_range_label(showing, total, offset)
+        # Append " entries" only for the simple "N entries" / "N of M entries" forms.
+        if offset == 0:
+            count_label_full = (
+                f"{showing} of {total} entries"
+                if showing < total
+                else f"{total} entries"
+            )
+        else:
+            count_label_full = count_label
         prefix_label = f" under {self._safe(prefix)}" if prefix else ""
         glob_label = (
             f" matching {', '.join(self._safe(p) for p in glob_patterns)}"
             if glob_patterns
             else ""
         )
-        header = f"Archive contents for {safe_name} {safe_version}{prefix_label}{glob_label} ({count_label}):"
+        header = f"Archive contents for {safe_name} {safe_version}{prefix_label}{glob_label} ({count_label_full}):"
 
         if not entries:
-            if glob_patterns:
+            if offset > 0 and total > 0:
+                self._writeln(
+                    f"No entries at offset {offset} for"
+                    f" {safe_name} {safe_version}{prefix_label}"
+                    f" (total: {total})."
+                )
+            elif glob_patterns:
                 patterns = ", ".join(self._safe(p) for p in glob_patterns)
                 self._writeln(
                     f"No files matched glob {patterns}"
