@@ -229,7 +229,8 @@ class AgentRenderer(Renderer):
             if v.yanked:
                 reason = f": {escape_xml(v.yanked_reason)}" if v.yanked_reason else ""
                 suffix = f" (yanked{reason})"
-            self._writeln(f"- {escape_xml(str(v.version))}{suffix}")
+            date_str = f" ({v.release_date:%Y-%m-%d})" if v.release_date else ""
+            self._writeln(f"- {escape_xml(str(v.version))}{date_str}{suffix}")
         self._writeln("</versions>")
 
     def _write_info_vulns(self, report: InfoReport) -> None:
@@ -349,7 +350,12 @@ class AgentRenderer(Renderer):
                     suffix = " (yanked)"
                 if version.yanked_reason:
                     suffix = f" (yanked: {escape_xml(version.yanked_reason)})"
-                self._writeln(f"- {escape_xml(str(version.version))}{suffix}")
+                date_str = (
+                    f" ({version.release_date:%Y-%m-%d})"
+                    if version.release_date
+                    else ""
+                )
+                self._writeln(f"- {escape_xml(str(version.version))}{date_str}{suffix}")
         self._writeln("</versions>")
         self._write_data_close()
 

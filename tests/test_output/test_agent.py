@@ -120,6 +120,26 @@ class TestRenderInfo:
         assert "- 2.30.0" in out
         assert "</versions>" in out
 
+    def test_versions_with_release_dates(self) -> None:
+        """Release dates appear in the info versions section."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(
+                version=Version("2.31.0"),
+                release_date=datetime(2024, 6, 15, 12, 0, tzinfo=timezone.utc),
+            ),
+            VersionInfo(version=Version("2.30.0")),
+        ]
+        report = InfoReport(
+            info=_pkg_info(),
+            versions=versions,
+            versions_total=142,
+        )
+        r.render_info(report)
+        out = s.getvalue()
+        assert "- 2.31.0 (2024-06-15)" in out
+        assert "- 2.30.0\n" in out
+
     def test_vulns_inside_version_details(self) -> None:
         """Vulnerabilities render inside <version-details>."""
         r, s = _renderer()
@@ -361,6 +381,37 @@ class TestRenderVersions:
         assert 'showing="1"' in out
         assert 'total="142"' in out
         assert 'truncated="true"' in out
+
+    def test_release_date_shown(self) -> None:
+        """Release dates appear inline after version string."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(
+                version=Version("2.31.0"),
+                release_date=datetime(2024, 6, 15, 12, 0, tzinfo=timezone.utc),
+            ),
+            VersionInfo(version=Version("2.30.0")),
+        ]
+        r.render_versions("pkg", versions, total=2)
+        out = s.getvalue()
+        assert "- 2.31.0 (2024-06-15)" in out
+        # Version without date has no parenthetical date
+        assert "- 2.30.0\n" in out
+
+    def test_release_date_before_yanked(self) -> None:
+        """Date appears before yanked suffix."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(
+                version=Version("1.0.0"),
+                release_date=datetime(2024, 1, 10, tzinfo=timezone.utc),
+                yanked=True,
+                yanked_reason="security fix",
+            ),
+        ]
+        r.render_versions("pkg", versions, total=1)
+        out = s.getvalue()
+        assert "- 1.0.0 (2024-01-10) (yanked: security fix)" in out
 
     def test_all_yanked_type_attribute(self) -> None:
         """Yanked-filter mode uses type attribute, no inline suffix."""

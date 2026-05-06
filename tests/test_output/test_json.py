@@ -145,18 +145,41 @@ class TestRenderVersions:
         assert data["truncated"] is False
 
     def test_version_object_structure(self) -> None:
-        """Version entries are objects with version, yanked, yanked_reason."""
+        """Version entries are objects with version, release_date, yanked, yanked_reason."""
         r, s = _renderer()
         versions = [VersionInfo(version=Version("1.0.0"))]
         r.render_versions("pkg", versions, total=1)
         data = _parse(s)
         v = data["versions"][0]
         assert "version" in v
+        assert "release_date" in v
         assert "yanked" in v
         assert "yanked_reason" in v
         assert v["version"] == "1.0.0"
+        assert v["release_date"] is None
         assert v["yanked"] is False
         assert v["yanked_reason"] is None
+
+    def test_release_date_iso_format(self) -> None:
+        """Release date serializes as ISO 8601 string."""
+        r, s = _renderer()
+        versions = [
+            VersionInfo(
+                version=Version("2.31.0"),
+                release_date=datetime(2024, 6, 15, 12, 0, tzinfo=timezone.utc),
+            ),
+        ]
+        r.render_versions("pkg", versions, total=1)
+        data = _parse(s)
+        assert data["versions"][0]["release_date"] == "2024-06-15T12:00:00+00:00"
+
+    def test_release_date_null_when_absent(self) -> None:
+        """Release date is null when not set."""
+        r, s = _renderer()
+        versions = [VersionInfo(version=Version("1.0.0"))]
+        r.render_versions("pkg", versions, total=1)
+        data = _parse(s)
+        assert data["versions"][0]["release_date"] is None
 
     def test_yanked_version(self) -> None:
         """Yanked version has yanked=true and reason in JSON."""

@@ -76,6 +76,9 @@ class JSONRenderer(Renderer):
             "versions": [
                 {
                     "version": str(version.version),
+                    "release_date": version.release_date.isoformat()
+                    if version.release_date
+                    else None,
                     "yanked": version.yanked,
                     "yanked_reason": version.yanked_reason,
                 }
