@@ -1,63 +1,177 @@
-/* peeq brand palette — charcoal + amber */
+/* peeq docs — charcoal + amber lens, developer-first polish
+   ═══════════════════════════════════════════════════════════
 
-/* Light scheme — charcoal header, clean page */
+   Structure:
+     1.  Design tokens
+     2.  Light scheme
+     3.  Dark scheme
+     4.  Header (scheme-agnostic)
+     5.  Sidebar nav
+     6.  Paper grain texture
+     7.  Layout
+     8.  Typography
+     9.  Inline code
+     10. Focus & keyboard nav
+     11. Buttons
+     12. Hero
+     13. Terminal mockup
+     14. Card grids
+     15. Comparison table
+     16. Responsive
+     17. Reduced motion
+     18. Print
+
+   All rules are scoped to `.peeq-*` custom classes, `.md-typeset`, or
+   theme scheme selectors so upgrades to Zensical's own CSS don't collide.
+   When overriding theme rules, prefer matching Zensical's specificity
+   over `!important`. */
+
+/* ── 1. Design tokens ─────────────────────────────────────── */
+
+:root {
+  --md-text-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --md-code-font: ui-monospace, "SFMono-Regular", "Cascadia Code", "Liberation Mono", Consolas, monospace;
+
+  /* Brand palette */
+  --peeq-charcoal: #1c1c1e;
+  --peeq-charcoal-2: #28282a;
+  --peeq-amber: #c9a84c;
+  --peeq-amber-2: #d9ba67;
+  --peeq-amber-3: #f6e5a7;
+  --peeq-gold-ink: #5d4710;
+
+  /* Terminal chrome — always dark in both themes */
+  --peeq-term-bg: #0b0b0d;
+  --peeq-term-chrome: #151517;
+  --peeq-term-text: #e8e8ea;
+  --peeq-term-muted: rgba(232, 232, 234, 0.55);
+
+  /* Shape & depth */
+  --peeq-radius: 0.5rem;
+  --peeq-radius-lg: 0.9rem;
+  --peeq-shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --peeq-shadow-hover: 0 8px 32px rgba(201, 168, 76, 0.14);
+  --peeq-shadow-terminal: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+/* ── 2. Light scheme ──────────────────────────────────────── */
+
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color: #1C1C1E;
-  --md-primary-fg-color--light: #4A4A4C;
-  --md-primary-fg-color--dark: #0D0D0E;
-  --md-primary-bg-color: #FFFFFF;
-  --md-primary-bg-color--light: #FAFAFA;
-  --md-accent-fg-color: #8B7022;
-  --md-accent-fg-color--transparent: rgba(139, 112, 34, 0.1);
-  --md-code-bg-color: #F5F5F0;
+  --md-primary-fg-color: var(--peeq-charcoal);
+  --md-primary-fg-color--light: #4a4a4c;
+  --md-primary-fg-color--dark: #0d0d0e;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: rgba(255, 255, 255, 0.72);
+  --md-accent-fg-color: #806520;
+  --md-accent-fg-color--transparent: rgba(128, 101, 32, 0.12);
+  --md-typeset-a-color: #7b621c;
+  --md-code-bg-color: #f5f2e9;
+  --peeq-surface: #ffffff;
+  --peeq-border: rgba(28, 28, 30, 0.1);
+  --peeq-muted: rgba(21, 21, 23, 0.62);
+
+  /* Accent text on light surfaces — kicker, command titles,
+     highlighted table cells. Flipped per scheme below. */
+  --peeq-accent-text: var(--peeq-gold-ink);
 }
 
-/*
- * Light scheme header — charcoal bar with white text.
- *
- * The header and all its children (search button, icons, Ctrl+K badge) derive
- * colors from --md-default-* CSS variables. By scoping dark-mode values to
- * .md-header, everything inside automatically renders light-on-dark — no
- * !important or per-element overrides needed.
- */
-[data-md-color-scheme="default"] .md-header {
-  --md-default-fg-color: hsla(0, 0%, 100%, 0.87);
-  --md-default-fg-color--light: hsla(0, 0%, 100%, 0.54);
-  --md-default-fg-color--lighter: hsla(0, 0%, 100%, 0.32);
-  --md-default-fg-color--lightest: hsla(0, 0%, 100%, 0.12);
-  --md-default-bg-color: #1C1C1E;
-  --md-default-bg-color--light: #28282A;
+[data-md-color-scheme="default"] body {
+  background: #fafaf8;
 }
 
-/* Dark scheme — full charcoal noir */
+/* ── 3. Dark scheme ───────────────────────────────────────── */
+
 [data-md-color-scheme="slate"] {
   --md-hue: 240;
-  --md-default-bg-color: #1C1C1E;
-  --md-default-fg-color: hsla(0, 0%, 100%, 0.87);
-  --md-default-fg-color--light: hsla(0, 0%, 100%, 0.54);
-  --md-default-fg-color--lighter: hsla(0, 0%, 100%, 0.32);
-  --md-default-fg-color--lightest: hsla(0, 0%, 100%, 0.12);
-  --md-primary-fg-color: #C9A84C;
-  --md-primary-fg-color--light: #D4B86A;
-  --md-primary-fg-color--dark: #9E8339;
-  --md-primary-bg-color: #1C1C1E;
-  --md-primary-bg-color--light: #28282A;
-  --md-accent-fg-color: #C9A84C;
-  --md-accent-fg-color--transparent: rgba(201, 168, 76, 0.1);
-  --md-typeset-a-color: #C9A84C;
-  --md-code-bg-color: #141416;
-  --md-code-fg-color: hsla(0, 0%, 100%, 0.87);
-  --md-footer-bg-color: #141416;
-  --md-footer-bg-color--dark: #0D0D0E;
+  --md-default-bg-color: #121214;
+  --md-default-fg-color: hsla(0, 0%, 100%, 0.9);
+  --md-default-fg-color--light: hsla(0, 0%, 100%, 0.66);
+  --md-default-fg-color--lighter: hsla(0, 0%, 100%, 0.42);
+  --md-default-fg-color--lightest: hsla(0, 0%, 100%, 0.14);
+  --md-primary-fg-color: var(--peeq-amber);
+  --md-primary-fg-color--light: #d4b86a;
+  --md-primary-fg-color--dark: #9e8339;
+  --md-primary-bg-color: var(--peeq-charcoal);
+  --md-primary-bg-color--light: rgba(40, 40, 42, 0.78);
+  --md-accent-fg-color: var(--peeq-amber);
+  --md-accent-fg-color--transparent: rgba(201, 168, 76, 0.14);
+  --md-typeset-a-color: var(--peeq-amber);
+  --md-code-bg-color: #0e0e10;
+  --md-code-fg-color: hsla(0, 0%, 100%, 0.9);
+  --md-footer-bg-color: #0e0e10;
+  --md-footer-bg-color--dark: #0a0a0c;
+  --peeq-surface: #1e1e20;
+  --peeq-border: rgba(255, 255, 255, 0.10);
+  --peeq-muted: rgba(255, 255, 255, 0.62);
+  --peeq-accent-text: var(--peeq-amber-3);
 }
 
-/*
- * Paper grain texture — procedural noise via feTurbulence, applied as a
- * fixed overlay. stitchTiles="stitch" makes the 256px tile seamlessly
- * repeatable. pointer-events: none keeps the overlay non-interactive.
- */
-[data-md-color-scheme="slate"]::before,
-[data-md-color-scheme="default"]::before {
+[data-md-color-scheme="slate"] body {
+  background: #121214;
+}
+
+/* ── 4. Header — always charcoal, regardless of scheme ────── */
+
+.md-header {
+  --md-default-fg-color: hsla(0, 0%, 100%, 0.9);
+  --md-default-fg-color--light: hsla(0, 0%, 100%, 0.62);
+  --md-default-fg-color--lighter: hsla(0, 0%, 100%, 0.38);
+  --md-default-fg-color--lightest: hsla(0, 0%, 100%, 0.14);
+  --md-default-bg-color: var(--peeq-charcoal);
+  --md-default-bg-color--light: var(--peeq-charcoal-2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0.6rem 2rem rgba(0, 0, 0, 0.14);
+}
+
+.md-header__button.md-logo img {
+  width: auto;
+  height: 2.2rem;
+}
+
+.md-header__topic,
+.md-nav__button.md-logo {
+  display: none;
+}
+
+.md-source__repository {
+  font-size: 0.75rem;
+}
+
+/* ── 5. Sidebar nav ───────────────────────────────────────── */
+
+/* Monospace title, matching the wordmark */
+.md-nav--primary > .md-nav__title .md-ellipsis {
+  font-family: var(--md-code-font);
+  font-size: 1.1rem;
+  font-weight: 400;
+  font-variant-ligatures: none;
+  letter-spacing: -0.05em;
+  text-rendering: geometricPrecision;
+}
+
+.md-nav__link--active,
+.md-nav__link:is(:hover, :focus-visible) {
+  color: var(--md-accent-fg-color);
+}
+
+.md-nav__link--active {
+  font-weight: 700;
+}
+
+/* Constrain sticky sidebar so its inner scrollwrap can actually scroll.
+   Zensical's desktop sidebar is `position: sticky; top: 2.4rem` with no
+   max-height — so a tall nav exceeds the viewport and its tail items
+   end up unreachable. Capping the scrollwrap (which already has
+   `overflow-y: auto`) lets it scroll internally. */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary .md-sidebar__scrollwrap {
+    max-height: calc(100vh - 2.4rem);
+  }
+}
+
+/* ── 6. Paper grain texture ───────────────────────────────── */
+
+[data-md-color-scheme]::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -67,41 +181,411 @@
   background-size: 256px 256px;
 }
 
-[data-md-color-scheme="slate"]::before {
-  opacity: 0.035;
+[data-md-color-scheme="default"]::before { opacity: 0.012; }
+[data-md-color-scheme="slate"]::before   { opacity: 0.022; }
+
+@media (prefers-contrast: more) {
+  [data-md-color-scheme]::before { display: none; }
 }
 
-[data-md-color-scheme="default"]::before {
-  opacity: 0.015;
+/* ── 7. Layout ────────────────────────────────────────────── */
+
+.md-grid {
+  max-width: 72rem;
 }
 
-/* Header logo — wordmark SVG replaces text title */
-.md-header__button.md-logo img {
-  height: 2.2rem;
+/* ── 8. Typography ────────────────────────────────────────── */
+
+.md-typeset :is(h1, h2, h3, h4) {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.md-typeset h2 {
+  margin-top: 2.2em;
+}
+
+/* ── 9. Inline code ───────────────────────────────────────── */
+
+.md-typeset code {
+  border: 1px solid var(--peeq-border);
+  border-radius: 0.28rem;
+}
+
+.md-typeset pre > code {
+  border: 0;
+}
+
+/* ── 10. Focus & keyboard nav ─────────────────────────────── */
+
+.md-typeset a:focus-visible,
+.md-button:focus-visible,
+.md-search__input:focus-visible {
+  outline: 0.15rem solid var(--peeq-amber);
+  outline-offset: 0.16rem;
+  border-radius: var(--peeq-radius);
+}
+
+/* ── 11. Buttons — flat, slightly rounded ─────────────────── */
+
+.md-typeset .md-button {
+  border-radius: var(--peeq-radius);
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 0.5em 1.2em;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+/* Primary: solid flat amber, dark text */
+.md-typeset .md-button--primary {
+  color: #121214;
+  background: var(--peeq-amber);
+  border-color: transparent;
+}
+
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus-visible {
+  color: #121214;
+  background: var(--peeq-amber-2);
+  box-shadow: var(--peeq-shadow-hover);
+  transform: translateY(-1px);
+}
+
+/* Secondary: transparent with hairline border */
+.md-typeset .md-button:not(.md-button--primary) {
+  color: var(--md-default-fg-color);
+  background: transparent;
+  border: 1px solid var(--peeq-border);
+}
+
+.md-typeset .md-button:not(.md-button--primary):hover,
+.md-typeset .md-button:not(.md-button--primary):focus-visible {
+  border-color: var(--peeq-amber);
+  background: rgba(201, 168, 76, 0.08);
+  transform: translateY(-1px);
+}
+
+/* ── 12. Hero — split layout with terminal ────────────────── */
+
+.peeq-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 9fr) minmax(0, 11fr);
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+  align-items: center;
+  margin: 0.4rem 0 3rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  background: var(--peeq-surface);
+  border: 1px solid var(--peeq-border);
+  border-radius: var(--peeq-radius-lg);
+  box-shadow: var(--peeq-shadow-soft);
+  overflow: hidden;
+}
+
+.peeq-hero__copy,
+.peeq-hero__demo {
+  min-width: 0;
+}
+
+.peeq-hero__mark { margin: 0 0 1rem; }
+.peeq-hero__mark p { margin: 0; }
+
+.peeq-hero__logo {
+  display: block;
+  height: clamp(2.6rem, 4vw, 3.4rem);
   width: auto;
 }
 
-/* Header repo link — slightly larger to balance the wordmark logo */
-.md-source__repository {
-  font-size: 0.75rem;
+.peeq-kicker {
+  display: inline-flex;
+  margin: 0 0 0.9rem;
+  padding: 0.28rem 0.72rem;
+  color: var(--peeq-accent-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(201, 168, 76, 0.13);
+  border: 1px solid rgba(201, 168, 76, 0.26);
+  border-radius: 999px;
 }
 
-/* Hide text title in header — the wordmark SVG already spells "peeq" */
-.md-header__topic {
+/* Specificity note: prefixed with `.md-typeset` to beat Zensical's
+   `.md-typeset h1` defaults (font-size 1.875em, margin 0 0 1.25em,
+   line-height 1.3, color). Class-only would silently lose. */
+.md-typeset .peeq-hero__headline {
+  margin: 0 0 0.9rem;
+  color: var(--md-default-fg-color);
+  font-size: clamp(1.4rem, 2.6vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.peeq-hero__lede {
+  margin: 0 0 1.4rem;
+  color: var(--peeq-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  max-width: 36rem;
+}
+
+/* Margin-based spacing — Python Markdown may wrap consecutive links in
+   a single `<p>`, or leave them bare; per-button margins handle both. */
+.peeq-hero__actions { margin-top: 1rem; }
+.peeq-hero__actions p { margin: 0; }
+.peeq-hero__actions .md-button { margin: 0 0.5rem 0.5rem 0; }
+
+/* ── 13. Terminal mockup ──────────────────────────────────── */
+
+.peeq-terminal {
+  min-width: 0;
+  background: var(--peeq-term-bg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--peeq-radius);
+  box-shadow: var(--peeq-shadow-terminal);
+  overflow: hidden;
+}
+
+.peeq-terminal__chrome {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+  background: var(--peeq-term-chrome);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.peeq-terminal__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  opacity: 0.85;
+}
+
+.peeq-terminal__dot--red   { background: #ff5f56; }
+.peeq-terminal__dot--amber { background: #ffbd2e; }
+.peeq-terminal__dot--green { background: #27c93f; }
+
+/* Specificity note: `.md-typeset pre` and `.md-typeset pre > code`
+   set line-height, color, padding, and margins on raw `<pre>`/`<code>`
+   elements. Our class selectors need the `.md-typeset` prefix to win
+   and apply the terminal-specific typography/padding. */
+.md-typeset .peeq-terminal__body {
+  margin: 0;
+  padding: 1rem 1.1rem 1.2rem;
+  max-width: 100%;
+  overflow-x: auto;
+  color: var(--peeq-term-text);
+  font-family: var(--md-code-font);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  background: transparent;
+  scrollbar-width: thin;
+}
+
+.md-typeset .peeq-terminal__body code {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.peeq-t--prompt { color: var(--peeq-amber); }
+.peeq-t--cmd    { color: #ffffff; font-weight: 500; }
+.peeq-t--label  { color: var(--peeq-amber-2); }
+.peeq-t--muted  { color: var(--peeq-term-muted); }
+
+/* Hide Zensical's runtime-injected copy control on the decorative
+   terminal. Targets the whole nav wrapper so the button's bounding
+   box disappears too. */
+.peeq-terminal .md-code__nav {
   display: none;
 }
 
-/* Hide the logo icon in sidebar — keep styled text there instead */
-.md-nav__button.md-logo {
-  display: none;
+/* ── 14. Card grids — feature / command / next ────────────── */
+
+.md-typeset :is(.peeq-feature-grid, .peeq-command-grid, .peeq-next-grid) {
+  margin-block: 1.1rem 1.8rem;
 }
 
-/* Sidebar title — match wordmark typewriter font */
-.md-nav--primary > .md-nav__title .md-ellipsis {
-  font-family: "Courier New", Courier, "Nimbus Mono PS", monospace;
-  font-size: 1.1rem;
-  font-weight: 400;
-  font-variant-ligatures: none;
-  letter-spacing: -0.05em;
-  text-rendering: geometricPrecision;
+.md-typeset :is(.peeq-feature-grid, .peeq-command-grid, .peeq-next-grid) > ul > li {
+  background: var(--peeq-surface);
+  border: 1px solid var(--peeq-border);
+  border-radius: var(--peeq-radius);
+  box-shadow: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.md-typeset :is(.peeq-feature-grid, .peeq-command-grid, .peeq-next-grid) > ul > li:is(:hover, :focus-within) {
+  border-color: rgba(201, 168, 76, 0.4);
+  box-shadow: var(--peeq-shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* Inline card icon — no bounding box */
+.peeq-card-icon {
+  display: inline;
+  margin-inline-end: 0.35rem;
+  font-size: 1.1em;
+}
+
+/* Command-grid card titles — type-led, not chip/pill.
+   First paragraph of every command card is the title (linked command
+   name in inline code). Strip the boxed inline-code styling here so
+   the title reads as a heading, regardless of word count. */
+.md-typeset .peeq-command-grid > ul > li > p:first-child {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.md-typeset .peeq-command-grid > ul > li > p:first-child code {
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: transparent;
+  border: 0;
+  color: var(--peeq-accent-text);
+}
+
+.md-typeset .peeq-command-grid > ul > li > p:first-child a,
+.md-typeset .peeq-command-grid > ul > li > p:first-child a code {
+  color: var(--peeq-accent-text);
+  text-decoration: none;
+}
+
+.md-typeset .peeq-command-grid > ul > li:is(:hover, :focus-within) > p:first-child a {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* ── 15. Comparison table ─────────────────────────────────── */
+
+/* The table fills its content column naturally; Zensical's own
+   `.md-typeset__table` rules already enforce `width: 100%`. We only
+   tune visual treatment (borders, type, code-cell highlight). */
+
+.peeq-table-wrap {
+  margin-block: 1rem 2rem;
+}
+
+.md-typeset .peeq-table-wrap table {
+  margin: 0;
+  border: 0;
+  font-size: 0.8rem;
+}
+
+.md-typeset .peeq-table-wrap :is(th, td) {
+  border: 0;
+  border-bottom: 1px solid var(--peeq-border);
+}
+
+.md-typeset .peeq-table-wrap th {
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+  background: transparent;
+  border-bottom: 2px solid var(--peeq-border);
+}
+
+/* Accent highlight on the "peeq command" column (currently the last
+   column). If the comparison table's column order changes, update
+   this selector to target the new command column. */
+.md-typeset .peeq-table-wrap td:last-child code {
+  color: var(--peeq-accent-text);
+  background: rgba(201, 168, 76, 0.12);
+  border-color: rgba(201, 168, 76, 0.24);
+}
+
+/* ── 16. Responsive ───────────────────────────────────────── */
+
+/* Media query widths use `em` (not `rem`) to match Zensical's own
+   breakpoints and remain stable under user-level font-size changes. */
+
+@media (max-width: 68.75em) {
+  .peeq-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .peeq-hero__demo { order: 2; }
+
+  .md-typeset .peeq-terminal__body {
+    max-height: 22rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 44em) {
+  .peeq-hero {
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+  }
+
+  /* Full-width buttons at narrow viewports — zero the horizontal margin
+     from the base rule to prevent overflow when `width: 100%`. */
+  .peeq-hero__actions .md-button {
+    width: 100%;
+    margin: 0 0 0.5rem 0;
+    text-align: center;
+  }
+}
+
+/* ── 17. Reduced motion ───────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .md-button,
+  .md-typeset :is(.peeq-feature-grid, .peeq-command-grid, .peeq-next-grid) > ul > li {
+    transition: none;
+  }
+
+  .md-typeset .md-button:hover,
+  .md-typeset :is(.peeq-feature-grid, .peeq-command-grid, .peeq-next-grid) > ul > li:hover {
+    transform: none;
+  }
+}
+
+/* ── 18. Print ────────────────────────────────────────────── */
+
+@media print {
+  [data-md-color-scheme]::before { display: none; }
+
+  /* Force light output regardless of which scheme was active on screen.
+     Overrides both Material tokens and peeq surface/border/text tokens
+     so dark-mode users get proper light-on-white printing. */
+  [data-md-color-scheme="slate"] {
+    --md-default-bg-color: #ffffff;
+    --md-default-fg-color: #000000;
+    --peeq-surface: #ffffff;
+    --peeq-border: rgba(0, 0, 0, 0.12);
+    --peeq-muted: rgba(0, 0, 0, 0.62);
+    --peeq-accent-text: #000000;
+  }
+
+  .peeq-hero__demo,
+  .peeq-terminal { display: none; }
+
+  .peeq-hero {
+    grid-template-columns: 1fr;
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+
+  .md-typeset .md-button {
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+  }
 }

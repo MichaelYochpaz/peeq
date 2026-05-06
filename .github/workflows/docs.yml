@@ -5,6 +5,8 @@ on:
       - main
     paths:
       - "docs/**"
+      - ".github/workflows/docs.yml"
+      - "pyproject.toml"
       - "uv.lock"
       - "zensical.toml"
   workflow_dispatch:
@@ -33,7 +35,7 @@ jobs:
           enable-cache: true
           python-version: "3.14"
       - run: uv sync --locked --dev
-      - run: uv run zensical build --clean
+      - run: uv run zensical build --strict --clean
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: site

@@ -7,32 +7,77 @@ Every command works directly against a package registry — no installation requ
 
 ### Inspection
 
-| Command | Description |
-|---------|-------------|
-| [`info`](info.md) | Show package metadata with optional version history, vulnerability scan, and dependency list. |
-| [`versions`](versions.md) | List available versions with filtering by specifier, limit, or yanked status. |
-| [`deps`](deps.md) | Show package dependencies, with optional diff between versions. |
-| [`artifacts`](artifacts.md) | List distribution artifacts (wheels, sdists) for a version. |
-| [`cat`](cat.md) | Print a file from inside a package archive. |
-| [`ls`](ls.md) | List file paths inside a package archive. |
-| [`download`](download.md) | Download a package archive or extract its contents to disk. |
+<div class="grid cards peeq-command-grid" markdown>
+
+-   [`info`](info.md)
+
+    Show package metadata with optional version history, vulnerability scan, and dependency list.
+
+-   [`versions`](versions.md)
+
+    List available versions with filtering by specifier, limit, or yanked status.
+
+-   [`deps`](deps.md)
+
+    Show package dependencies, with optional diff between versions.
+
+-   [`artifacts`](artifacts.md)
+
+    List distribution artifacts — wheels and sdists — for a version.
+
+-   [`cat`](cat.md)
+
+    Print a file from inside a package archive.
+
+-   [`ls`](ls.md)
+
+    List file paths inside a package archive.
+
+-   [`download`](download.md)
+
+    Download a package archive or extract its contents to disk.
+
+</div>
 
 ### Resolution & Security
 
-| Command | Description |
-|---------|-------------|
-| [`vulns`](vulns.md) | Check for known vulnerabilities via the OSV database. |
-| [`resolve`](resolve.md) | Resolve a full dependency tree for one or more PEP 508 requirements. |
-| [`conflicts`](conflicts.md) | Check if packages can be installed together. |
-| [`why`](why.md) | Trace why a package appears in the dependency tree. |
+<div class="grid cards peeq-command-grid" markdown>
+
+-   [`vulns`](vulns.md)
+
+    Check for known vulnerabilities via the OSV database.
+
+-   [`resolve`](resolve.md)
+
+    Resolve a full dependency tree for one or more PEP 508 requirements.
+
+-   [`conflicts`](conflicts.md)
+
+    Check if packages can be installed together.
+
+-   [`why`](why.md)
+
+    Trace why a package appears in the dependency tree.
+
+</div>
 
 ### System
 
-| Command | Description |
-|---------|-------------|
-| [`cache`](cache.md) | Cache management — view stats, clear entries, check integrity. |
-| `config path` | Print the configuration file path. See [Configuration](../configuration.md). |
-| `skill show` | Print agent skill instructions for AI agents. See [Agent Skill](../ai-agents/skill.md). |
+<div class="grid cards peeq-command-grid" markdown>
+
+-   [`cache`](cache.md)
+
+    Cache management — view stats, clear entries, check integrity.
+
+-   [`config path`](../configuration.md)
+
+    Print the configuration file path.
+
+-   [`skill show`](../ai-agents/skill.md)
+
+    Print agent skill instructions for AI agents.
+
+</div>
 
 ## Global options
 
