@@ -1,6 +1,6 @@
 [project]
 name = "peeq"
-version = "0.1.0"
+version = "0.2.0"
 description = "Investigate Python package metadata, dependencies, and known vulnerabilities. Built for developers and AI agents."
 readme = "README.md"
 license = "MIT"

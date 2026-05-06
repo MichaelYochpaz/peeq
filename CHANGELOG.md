@@ -8,6 +8,8 @@ Release dates use UTC.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-06
+
 ### Added
 
 - `-g`/`--glob` flag for the `ls` command to recursively search archive contents by glob pattern
