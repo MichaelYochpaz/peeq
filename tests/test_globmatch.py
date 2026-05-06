@@ -268,6 +268,40 @@ class TestGlobValidation:
         with pytest.raises(InvalidGlobError, match="maximum length"):
             glob_match("anything", "a" * 1025)
 
+    @pytest.mark.parametrize(
+        "pattern",
+        [
+            "[invalid",
+            "abc[",
+            "[abc][def",
+            "src/[partial",
+        ],
+    )
+    def test_unmatched_bracket_rejected(self, pattern: str) -> None:
+        with pytest.raises(InvalidGlobError, match=r"unmatched '\['"):
+            glob_match("anything", pattern)
+
+    @pytest.mark.parametrize(
+        "pattern",
+        [
+            "[abc]",
+            "[!abc]",
+            "[^abc]",
+            "[]abc]",
+            "[!]abc]",
+            "[a-z]",
+            "[-abc]",
+            "[abc-]",
+            "[[]",
+            r"[\\]]",
+            "[[abc]]",
+            r"\[notabracket",
+        ],
+    )
+    def test_valid_bracket_patterns_accepted(self, pattern: str) -> None:
+        # Must not raise — pattern is structurally valid.
+        glob_match("anything", pattern)
+
 
 # ---------------------------------------------------------------------------
 # Tests: validate_glob_patterns

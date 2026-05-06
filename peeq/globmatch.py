@@ -58,6 +58,24 @@ def _validate_pattern(pattern: str) -> None:
             " (--glob filters files, not directories)"
         )
 
+    # Reject unmatched '[' — wcmatch treats it as a literal per POSIX,
+    # but in archive paths a bare '[' is almost certainly a typo.
+    i = 0
+    while i < len(pattern):
+        if pattern[i] == "\\" and i + 1 < len(pattern):
+            i += 2
+            continue
+        if pattern[i] == "[":
+            close = pattern.find("]", i + 1)
+            if close == -1:
+                raise InvalidGlobError(
+                    f"unmatched '[' in glob pattern: {pattern!r};"
+                    r" escape as '\[' to match a literal '['"
+                )
+            i = close + 1
+        else:
+            i += 1
+
 
 @lru_cache(maxsize=256)
 def _get_matcher(patterns: tuple[str, ...]) -> wcglob.WcMatcher:
