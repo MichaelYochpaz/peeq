@@ -26,6 +26,7 @@ from packaging.version import InvalidVersion, Version
 
 PYPROJECT = Path("pyproject.toml")
 CHANGELOG = Path("CHANGELOG.md")
+LOCKFILE = Path("uv.lock")
 ENCODING = "utf-8"
 
 # Em dash (U+2014) — must match the existing CHANGELOG.md heading style.
@@ -410,7 +411,16 @@ def _commit_and_tag(version: Version, *, no_verify: bool) -> None:
         version: The release version.
         no_verify: If True, pass --no-verify to git commit.
     """
-    _run_git("add", str(PYPROJECT), str(CHANGELOG))
+    # Update the lockfile to reflect the version bump so the uv-lock
+    # pre-commit hook finds nothing to change.
+    result = subprocess.run(["uv", "lock"], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        _error(
+            "failed to update uv.lock after version bump",
+            hint=f"restore files: git checkout HEAD -- {PYPROJECT} {CHANGELOG}",
+        )
+
+    _run_git("add", str(PYPROJECT), str(CHANGELOG), str(LOCKFILE))
 
     commit_args = ["commit", "-m", f"chore(build): prepare {version} release"]
     if no_verify:
@@ -431,7 +441,7 @@ def _commit_and_tag(version: Version, *, no_verify: bool) -> None:
             file=sys.stderr,
         )
         print(
-            f"  To abort: git checkout HEAD -- {PYPROJECT} {CHANGELOG}",
+            f"  To abort: git checkout HEAD -- {PYPROJECT} {CHANGELOG} {LOCKFILE}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -449,7 +459,7 @@ def _commit_and_tag(version: Version, *, no_verify: bool) -> None:
         )
         print(
             f"  To abort entirely: git reset HEAD~1 && "
-            f"git checkout HEAD -- {PYPROJECT} {CHANGELOG}",
+            f"git checkout HEAD -- {PYPROJECT} {CHANGELOG} {LOCKFILE}",
             file=sys.stderr,
         )
         sys.exit(1)
