@@ -63,6 +63,10 @@ Categorize each commit into [Keep a Changelog](https://keepachangelog.com/) cate
 
 For commits without a Conventional Commits prefix, infer the category from the change description and diffs.
 
+Include only commits where `git show --stat` (already collected in step 3) shows changes inside the released package. Commits touching only external packages (e.g., `peeq-skill/`) belong to those packages' changelogs.
+
+After drafting, verify factual claims (default values, format coverage) against `--help` output or a sample command run. Commit messages reflect intent at authoring time; subsequent commits may change defaults or scope.
+
 Writing guidelines:
 
 - User-facing prose — describe impact, not implementation
@@ -115,10 +119,12 @@ git commit -m "docs(changelog): prepare <version> release notes"
 Execute the release script, passing the version and any flags the user requested:
 
 ```bash
-uv run python scripts/release.py <version>
+uv run python scripts/release.py <version> -y
 ```
 
-The script validates preconditions, shows a commit summary alongside the release notes preview, and asks for final confirmation. It then bumps the version in `pyproject.toml`, moves the `[Unreleased]` content to a versioned heading, commits, creates an annotated tag, and atomic-pushes to origin. CI automatically runs lint, tests, builds, creates a GitHub Release, and publishes to PyPI.
+Always pass `-y` — the user already confirmed at step 5, and the interactive prompt requires a TTY.
+
+The script validates preconditions, bumps the version in `pyproject.toml`, moves the `[Unreleased]` content to a versioned heading, commits, creates an annotated tag, and atomic-pushes to origin. CI automatically runs lint, tests, builds, creates a GitHub Release, and publishes to PyPI.
 
 ### Release Script Flags
 
