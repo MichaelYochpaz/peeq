@@ -292,18 +292,27 @@
   min-width: 0;
 }
 
+.peeq-hero__copy { text-align: center; }
+
 .peeq-hero__mark { margin: 0 0 1rem; }
 .peeq-hero__mark p { margin: 0; }
 
-.peeq-hero__logo {
+/* Specificity note: prefixed with `.md-typeset` to beat Zensical's
+   `.md-typeset img { max-width: 100%; height: auto }` which would
+   otherwise override the width constraint on the SVG `<img>`. */
+.md-typeset .peeq-hero__logo {
   display: block;
-  height: clamp(2.6rem, 4vw, 3.4rem);
-  width: auto;
+  width: clamp(200px, 28vw, 250px);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 7 / 3;
+  margin-inline: auto;
 }
 
 .peeq-kicker {
-  display: inline-flex;
-  margin: 0 0 0.9rem;
+  display: flex;
+  width: fit-content;
+  margin: 0 auto 0.9rem;
   padding: 0.28rem 0.72rem;
   color: var(--peeq-accent-text);
   font-size: 0.72rem;
@@ -329,7 +338,7 @@
 }
 
 .peeq-hero__lede {
-  margin: 0 0 1.4rem;
+  margin: 0 auto 1.4rem;
   color: var(--peeq-muted);
   font-size: 0.88rem;
   line-height: 1.6;
@@ -340,7 +349,7 @@
    a single `<p>`, or leave them bare; per-button margins handle both. */
 .peeq-hero__actions { margin-top: 1rem; }
 .peeq-hero__actions p { margin: 0; }
-.peeq-hero__actions .md-button { margin: 0 0.5rem 0.5rem 0; }
+.peeq-hero__actions .md-button { margin: 0 0.25rem 0.5rem; }
 
 /* ── 13. Terminal mockup ──────────────────────────────────── */
 
@@ -521,6 +530,12 @@
   }
 
   .peeq-hero__demo { order: 2; }
+
+  /* In single-column the wordmark doesn't compete with the terminal for column space — let it grow.
+  Centering comes from the base rule. */
+  .md-typeset .peeq-hero__logo {
+    width: clamp(240px, 32vw, 300px);
+  }
 
   .md-typeset .peeq-terminal__body {
     max-height: 22rem;
