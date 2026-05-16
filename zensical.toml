@@ -37,6 +37,7 @@ nav = [
 
 [project.theme]
 logo = "images/logo-header.svg"
+favicon = "images/favicon.svg"
 language = "en"
 font = false
 features = [

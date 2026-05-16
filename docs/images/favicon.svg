@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="255 45 160 160" role="img" aria-labelledby="peeqIconTitle peeqIconDesc" preserveAspectRatio="xMidYMid meet">
+  <title id="peeqIconTitle">peeq icon</title>
+  <desc id="peeqIconDesc">A golden magnifying glass from the peeq wordmark.</desc>
+  <defs>
+    <radialGradient id="peeq-icon-lens-fill" cx="48%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#F6E5A7" stop-opacity="0.94"/>
+      <stop offset="62%" stop-color="#D9BA67" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#C9A84C" stop-opacity="0.3"/>
+    </radialGradient>
+    <radialGradient id="peeq-icon-glow-fill" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#D4B35E" stop-opacity="0.62"/>
+      <stop offset="58%" stop-color="#C9A84C" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#C9A84C" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="peeq-icon-soft-glow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <mask id="peeq-icon-handle-mask" maskUnits="userSpaceOnUse" x="255" y="45" width="160" height="160">
+      <rect x="255" y="45" width="160" height="160" fill="white"/>
+      <circle cx="335" cy="120" r="41" fill="black"/>
+    </mask>
+  </defs>
+  <style>
+    svg {
+      --stroke: #1c1c1e;
+      --glint: #fff2bf;
+      --rim: #fff8dc;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      svg {
+        --stroke: #e8e8ea;
+      }
+    }
+
+    .handle,
+    .lens-outline,
+    .glint,
+    .inner-rim {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .handle,
+    .lens-outline {
+      stroke: var(--stroke);
+    }
+
+    .lens-outline {
+      stroke-width: 6;
+    }
+
+    .handle {
+      stroke-width: 9;
+    }
+
+    .lens-base {
+      fill: #f0da94;
+      opacity: 0.96;
+    }
+
+    .lens-fill {
+      opacity: 0.92;
+    }
+
+    .glow {
+      opacity: 0.74;
+    }
+
+    .inner-rim {
+      stroke: var(--rim);
+      stroke-opacity: 0.34;
+      stroke-width: 4;
+    }
+
+    .glint {
+      stroke: var(--glint);
+      stroke-opacity: 0.8;
+      stroke-width: 4;
+    }
+  </style>
+
+  <g data-part="magnifier">
+    <circle class="glow" cx="335" cy="120" r="53" fill="url(#peeq-icon-glow-fill)" filter="url(#peeq-icon-soft-glow)"/>
+    <path class="handle" d="M353 139 L344 160 L358 200" mask="url(#peeq-icon-handle-mask)"/>
+    <circle class="lens-base" cx="335" cy="120" r="40"/>
+    <circle class="lens-fill" cx="335" cy="120" r="40" fill="url(#peeq-icon-lens-fill)"/>
+    <circle class="lens-outline" cx="335" cy="120" r="40"/>
+    <circle class="inner-rim" cx="335" cy="120" r="35"/>
+    <path class="glint" d="M347 94 C356 98 362 107 364 116"/>
+  </g>
+</svg>
