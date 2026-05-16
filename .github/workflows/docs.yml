@@ -6,8 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Git ref to build docs from (tag or docs-fix branch)"
-        required: true
+        description: "Git ref to build docs from"
+        required: false
+        default: main
+      allow_unreleased_content:
+        description: "Allow deploy even when docs Markdown changed since the latest release"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,18 +32,61 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Validate manual dispatch ref
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          ref="${{ inputs.ref }}"
-          if [ -z "$ref" ] || [ "$ref" = "main" ] || [ "$ref" = "refs/heads/main" ]; then
-            echo "::error::Ref must be a release tag or docs-fix branch, not 'main'. Deploying from main risks publishing unreleased content."
-            exit 1
-          fi
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        if: github.event_name == 'workflow_dispatch'
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          fetch-depth: 0
+      - name: Guard unreleased docs content
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOW_UNRELEASED_CONTENT: ${{ inputs.allow_unreleased_content }}
+        run: |
+          latest_release_tag="$(
+            gh release list \
+              --repo "$GITHUB_REPOSITORY" \
+              --exclude-drafts \
+              --exclude-pre-releases \
+              --limit 1 \
+              --json tagName \
+              --jq '.[0].tagName'
+          )"
+          if [ -z "$latest_release_tag" ]; then
+            echo "::error::No published GitHub release found to compare docs content against."
+            exit 1
+          fi
+          if ! git rev-parse --verify --quiet "$latest_release_tag^{commit}" >/dev/null; then
+            echo "::error::Latest release tag $latest_release_tag is not available in the checkout."
+            exit 1
+          fi
+
+          changed_markdown="$(
+            git diff --name-only "$latest_release_tag" HEAD -- docs |
+              grep -E '^docs/.*\.md$' || true
+          )"
+
+          if [ -z "$changed_markdown" ]; then
+            echo "No docs Markdown changes since $latest_release_tag."
+            exit 0
+          fi
+
+          echo "Docs Markdown changed since $latest_release_tag:"
+          echo "$changed_markdown"
+
+          if [ "$ALLOW_UNRELEASED_CONTENT" != "true" ]; then
+            echo "::error::Manual docs deploy includes docs Markdown changes since $latest_release_tag."
+            echo "::error::Re-run with allow_unreleased_content=true if this is intentional."
+            exit 1
+          fi
+
+          echo "::warning::Deploying docs with Markdown changes since $latest_release_tag."
+          echo "::warning::allow_unreleased_content=true was set for this manual run."
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
