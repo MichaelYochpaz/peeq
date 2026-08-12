@@ -23,7 +23,7 @@ from peeq.output.base import (
     format_unfixed_vulnerability_note,
     try_decode,
 )
-from peeq.sanitize import strip_control_chars
+from peeq.sanitize import sanitize_diagnostic, strip_control_chars
 from peeq.utils import group_dependencies
 
 if TYPE_CHECKING:
@@ -646,7 +646,7 @@ class PlainRenderer(Renderer):
 
     def render_error(self, message: str) -> None:
         """Render an error message."""
-        self._writeln(f"Error: {self._safe(message)}")
+        self._writeln(f"Error: {self._safe(sanitize_diagnostic(message))}")
 
     def render_not_found(self, name: str) -> None:
         """Render a 'package not found' message."""

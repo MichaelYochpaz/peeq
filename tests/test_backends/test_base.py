@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import socket
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
@@ -707,3 +708,45 @@ class TestResponseSizeLimit:
         )
         with pytest.raises(ResponseTooLargeError, match="exceeds size limit"):
             _check_response_size(response, max_bytes=1000)
+
+    def test_response_url_diagnostics_are_credential_safe(self):
+        """Size errors retain the endpoint but never its credentials."""
+        response = httpx.Response(
+            status_code=200,
+            headers={"content-length": "2000"},
+            request=httpx.Request(
+                "GET",
+                "https://user:top-secret@registry.example/simple?token=query-secret",
+            ),
+        )
+
+        with pytest.raises(ResponseTooLargeError) as exc_info:
+            _check_response_size(response, max_bytes=1000)
+
+        message = str(exc_info.value)
+        assert "registry.example/simple" in message
+        assert "exceeds size limit" in message
+        for secret in ("user", "top-secret", "query-secret"):
+            assert secret not in message
+
+    async def test_retry_log_redacts_selected_index_credentials(self, caplog: pytest.LogCaptureFixture):
+        """Debug retry logs are safe even when the selected URL embeds auth."""
+        url = "https://user:top-secret@registry.example/simple?token=query-secret"
+        statuses = iter([500, 200])
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            status = next(statuses)
+            return httpx.Response(status, content=b"ok" if status == 200 else b"", request=request)
+
+        backend = _StubBackend(base_url=url)
+        caplog.set_level(logging.DEBUG, logger="peeq.backends.base")
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            backend._client = client
+            response = await backend.get_with_retry(url)
+            backend._client = None
+
+        assert response.status_code == 200
+        logs = caplog.text
+        assert "registry.example/simple" in logs
+        for secret in ("user", "top-secret", "query-secret"):
+            assert secret not in logs

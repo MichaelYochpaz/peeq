@@ -44,7 +44,7 @@ from peeq.extraction import (
     extract_file,
     list_archive,
 )
-from peeq.sanitize import redact_url_credentials, sanitize_filename
+from peeq.sanitize import sanitize_diagnostic, sanitize_filename
 
 if TYPE_CHECKING:
     from peeq.extraction import ArchiveMember
@@ -240,7 +240,7 @@ class CacheManager:
                 sha256=sha256,
                 sha256_source=sha256_source,
                 filename=filename,
-                download_url=redact_url_credentials(download_url) if download_url else None,
+                download_url=sanitize_diagnostic(download_url, fallback="") if download_url else None,
                 archive_path=archive_path,
                 size_bytes=size_bytes,
                 created_at=now,
@@ -361,7 +361,7 @@ class CacheManager:
                 sha256=sha256,
                 sha256_source=sha256_source,
                 filename=filename,
-                download_url=redact_url_credentials(download_url) if download_url else None,
+                download_url=sanitize_diagnostic(download_url, fallback="") if download_url else None,
                 archive_path=rel_path,
                 size_bytes=len(archive_data),
                 created_at=now,

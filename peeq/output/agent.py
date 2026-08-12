@@ -24,7 +24,7 @@ from peeq.output.base import (
     format_unfixed_vulnerability_note,
     try_decode,
 )
-from peeq.sanitize import escape_xml, escape_xml_attr, escape_xml_specifier
+from peeq.sanitize import escape_xml, escape_xml_attr, escape_xml_specifier, sanitize_diagnostic
 from peeq.utils import group_dependencies
 
 if TYPE_CHECKING:
@@ -756,7 +756,7 @@ class AgentRenderer(Renderer):
 
     def render_error(self, message: str) -> None:
         """Render error inside XML tags."""
-        self._writeln(f"<error>{escape_xml(message)}</error>")
+        self._writeln(f"<error>{escape_xml(sanitize_diagnostic(message))}</error>")
 
     def render_not_found(self, name: str) -> None:
         """Render 'not found' as a self-closing XML tag."""

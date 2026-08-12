@@ -28,6 +28,8 @@ from packaging.markers import Marker
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
+from peeq.sanitize import sanitize_diagnostic
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -276,7 +278,7 @@ class PackageProvider:
                 "Invalid python_requires for %s %s: %s",
                 package,
                 version,
-                metadata.python_requires,
+                sanitize_diagnostic(metadata.python_requires),
             )
             return True
 
@@ -306,7 +308,7 @@ class PackageProvider:
         except Exception:
             logger.debug(
                 "Invalid requires-python %r for %s, including version",
-                version_info.requires_python,
+                sanitize_diagnostic(version_info.requires_python),
                 version_info.version,
             )
             return True
@@ -345,7 +347,7 @@ class PackageProvider:
             except Exception:
                 logger.debug(
                     "Failed to evaluate marker %r, including dependency",
-                    dep.markers,
+                    sanitize_diagnostic(dep.markers),
                 )
                 result.append(dep)
 
@@ -375,5 +377,5 @@ def _any_specifier_pins_prerelease(
                     if Version(spec.version).is_prerelease:
                         return True
                 except Exception:
-                    logger.debug("Unparseable version in specifier: %s", spec)
+                    logger.debug("Unparseable version in specifier: %s", sanitize_diagnostic(str(spec)))
     return False

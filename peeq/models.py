@@ -29,8 +29,10 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 from packaging.version import Version
-from pydantic import BaseModel, Field, GetCoreSchemaHandler, GetJsonSchemaHandler
+from pydantic import BaseModel, Field, GetCoreSchemaHandler, GetJsonSchemaHandler, field_validator
 from pydantic_core import core_schema
+
+from peeq.sanitize import sanitize_diagnostic
 
 if TYPE_CHECKING:
     from pydantic.json_schema import JsonSchemaValue
@@ -489,6 +491,14 @@ class InfoReport(BaseModel):
 
     errors: dict[str, str] | None = None
     """Per-section error messages for partial failures (section name → message)."""
+
+    @field_validator("errors")
+    @classmethod
+    def _sanitize_errors(cls, value: dict[str, str] | None) -> dict[str, str] | None:
+        """Keep partial-failure diagnostics safe in every renderer."""
+        if value is None:
+            return None
+        return {key: sanitize_diagnostic(message) for key, message in value.items()}
 
 
 # ---------------------------------------------------------------------------

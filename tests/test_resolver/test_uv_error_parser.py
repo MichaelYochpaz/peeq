@@ -12,6 +12,7 @@ from peeq.resolver.uv_error_parser import (
     _parse_uv_error,
     _split_specifier,
 )
+from peeq.sanitize import DIAGNOSTIC_HINT_MAX_LENGTH, DIAGNOSTIC_MAX_HINTS, DIAGNOSTIC_MAX_LENGTH
 
 # ---------------------------------------------------------------------------
 # Fixture loading
@@ -253,6 +254,27 @@ class TestParseUvError:
         conflicts, summary = _parse_uv_error(text)
         assert len(conflicts) >= 1
         assert summary
+
+    def test_fallback_proof_is_bounded_and_credential_safe(self) -> None:
+        url = "https://user:top-secret@registry.example/simple?token=query-secret"
+        text = f"Unexpected resolver failure at {url}\x1b[2J\n" + "proof " * 5000
+        conflicts, summary = _parse_uv_error(text)
+
+        assert summary == "Could not resolve dependencies"
+        assert len(conflicts) == 1
+        assert len(conflicts[0].message) <= DIAGNOSTIC_MAX_LENGTH
+        assert conflicts[0].message.endswith("... [truncated]")
+        for secret in ("user", "top-secret", "query-secret", "\x1b"):
+            assert secret not in conflicts[0].message
+
+    def test_hint_count_and_lengths_are_bounded(self) -> None:
+        hints = ["hint: " + "x" * 2000, *(f"hint: suggestion {index} " + "y" * 80 for index in range(11))]
+        text = "proof\n" + "\n".join(hints)
+        conflicts, _summary = _parse_uv_error(text)
+
+        assert len(conflicts[0].hints) == DIAGNOSTIC_MAX_HINTS
+        assert all(len(hint) <= DIAGNOSTIC_HINT_MAX_LENGTH for hint in conflicts[0].hints)
+        assert len(conflicts[0].hints[0]) == DIAGNOSTIC_HINT_MAX_LENGTH
 
     # -- Never-raises invariant -----------------------------------------------
 

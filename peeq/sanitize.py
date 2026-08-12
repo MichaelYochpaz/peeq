@@ -7,8 +7,9 @@ surface identified in the security review:
 - `sanitize_filename` — path traversal via malicious registry filenames
 - `escape_xml` / `escape_xml_attr` / `escape_xml_specifier` — XML injection
   in `--format=agent`
-- `strip_control_chars` — ANSI/OSC injection in plain-text output
-- `redact_url_credentials` — credential leakage in logs, cache, process lists
+- `strip_control_chars` — ANSI/OSC/control injection in text output
+- `redact_url_credentials` — credential leakage in URLs
+- `sanitize_diagnostic` — bounded, credential-safe diagnostic text
 - `validate_ip_not_internal` — SSRF via redirects to internal networks
 
 All functions are pure (no I/O, no side effects) and safe to call from
@@ -85,6 +86,62 @@ _ANSI_ESCAPE_RE: re.Pattern[str] = re.compile(
     r"|"
     r"\x9d.*?(?:\x07|\x1b\\|\x9c)"  # C1 OSC: \x9d ... (BEL, ST, or C1 ST)
     r")"
+)
+
+# Diagnostic text can originate in subprocess stderr, registry responses,
+# exception strings, and logging fields.  These limits keep that untrusted
+# text useful without allowing it to grow without bound in models or output.
+DIAGNOSTIC_MAX_LENGTH: int = 8 * 1024
+DIAGNOSTIC_MAX_LINES: int = 200
+DIAGNOSTIC_HINT_MAX_LENGTH: int = 1024
+DIAGNOSTIC_MAX_HINTS: int = 8
+
+_DIAGNOSTIC_FALLBACK = "No diagnostic details available."
+_TRUNCATION_MARKER = "... [truncated]"
+
+# URLs embedded in prose.  Whitespace, quotes, and angle brackets are useful
+# conservative boundaries for exception and log text; trailing punctuation is
+# harmless if it remains part of the parsed path.
+_EMBEDDED_URL_RE: re.Pattern[str] = re.compile(
+    r"\b[a-z][a-z0-9+.-]*://[^\s<>\"']+",
+    re.IGNORECASE,
+)
+
+# Known secret-bearing query and key/value names.  Keep this deliberately
+# specific so useful diagnostic fields are not erased wholesale.
+_SENSITIVE_NAME = (
+    r"access[_-]?token|api[_-]?key|auth(?:orization)?|client[_-]?secret|"
+    r"credential|password|passwd|secret|signature|sig|token"
+)
+_SENSITIVE_FIELD_NAME = (
+    r"access[_-]?token|api[_-]?key|auth|client[_-]?secret|credential|"
+    r"password|passwd|secret|signature|sig|token"
+)
+_SENSITIVE_QUERY_RE: re.Pattern[str] = re.compile(
+    rf"(?P<prefix>(?:^|[?&#;])(?:{_SENSITIVE_NAME})=)[^&#;]*",
+    re.IGNORECASE,
+)
+_AUTHORIZATION_RE: re.Pattern[str] = re.compile(
+    r"\b(?P<name>proxy-authorization|authorization)\s*[:=]\s*"
+    r"(?:(?:basic|bearer)\s+)?[^\s,;]+",
+    re.IGNORECASE,
+)
+_BEARER_TOKEN_RE: re.Pattern[str] = re.compile(
+    r"\bbearer\s+[a-z0-9._~+/=-]{8,}",
+    re.IGNORECASE,
+)
+_SENSITIVE_VALUE_RE: re.Pattern[str] = re.compile(
+    rf"\b(?P<name>{_SENSITIVE_FIELD_NAME})\b\s*[:=]\s*"
+    r"(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;&]+)",
+    re.IGNORECASE,
+)
+
+# Best-effort credential stripping for malformed URLs that `urlsplit` rejects,
+# such as a broken IPv6 literal.  Removing everything between the scheme and
+# the final `@` is safer than returning credential-bearing text unchanged.
+_MALFORMED_URL_USERINFO_RE: re.Pattern[str] = re.compile(
+    r"(?P<scheme>\b[a-z][a-z0-9+.-]*://)[^\s/@]+@",
+    re.IGNORECASE,
 )
 
 
@@ -299,9 +356,11 @@ def strip_control_chars(text: str) -> str:
     change the terminal title (`\\x1b]0;evil\\x07`), or create
     invisible clickable links via OSC 8.
 
-    This function removes all ANSI CSI sequences, OSC sequences, and
-    simple two-byte escape sequences.  Regular printable text,
-    including newlines and tabs, is preserved.
+    This function removes all ANSI CSI sequences, OSC sequences, simple
+    two-byte escape sequences, and remaining Unicode control/format
+    characters.  Regular printable text, including newlines and tabs, is
+    preserved.  Carriage returns are normalized to newlines so they cannot
+    rewrite an existing terminal line.
 
     The practical risk is low because plain output is auto-selected
     for piped/redirected output where ANSI codes are inert text, but
@@ -313,7 +372,9 @@ def strip_control_chars(text: str) -> str:
     Returns:
         The input string with all ANSI/OSC escape sequences removed.
     """
-    return _ANSI_ESCAPE_RE.sub("", text)
+    without_ansi = _ANSI_ESCAPE_RE.sub("", text)
+    normalized = without_ansi.replace("\r\n", "\n").replace("\r", "\n")
+    return "".join(char for char in normalized if char in "\n\t" or unicodedata.category(char) not in {"Cc", "Cf"})
 
 
 # ---------------------------------------------------------------------------
@@ -329,18 +390,16 @@ def redact_url_credentials(url: str) -> str:
     These credentials must not be stored in the cache database, logged,
     or passed as CLI arguments to subprocesses (visible via `ps`).
 
-    This function strips the `username:password@` portion from the
-    URL while preserving all other components (scheme, host, port,
-    path, query, fragment).
+    This function strips the `username:password@` portion from the URL and
+    redacts values for known secret-bearing query parameters.  Other URL
+    components are preserved.
 
     Args:
         url: URL that may contain embedded credentials.
 
     Returns:
-        The URL with credentials removed.  If the URL has no
-        credentials, it is returned unchanged.  If parsing fails,
-        the original URL is returned as-is (fail-open to avoid
-        breaking non-URL strings).
+        The URL with credentials removed.  If parsing fails, a conservative
+        regex fallback still removes recognizable userinfo.
 
     Examples:
         >>> redact_url_credentials("https://user:pass@registry.com/simple/")
@@ -351,22 +410,86 @@ def redact_url_credentials(url: str) -> str:
     try:
         parts = urlsplit(url)
     except ValueError:
-        # Malformed URL — return as-is rather than crashing.
-        return url
+        redacted = _MALFORMED_URL_USERINFO_RE.sub(r"\g<scheme>", url)
+        return _SENSITIVE_QUERY_RE.sub(r"\g<prefix>[redacted]", redacted)
 
-    if not parts.hostname:
-        return url
+    # Splitting the raw netloc avoids accessing `parts.port`, which raises for
+    # malformed ports, and naturally preserves IPv6 brackets and host casing.
+    netloc = parts.netloc.rsplit("@", maxsplit=1)[-1]
+    query = _SENSITIVE_QUERY_RE.sub(r"\g<prefix>[redacted]", parts.query)
+    fragment = _SENSITIVE_QUERY_RE.sub(r"\g<prefix>[redacted]", parts.fragment)
+    return urlunsplit((parts.scheme, netloc, parts.path, query, fragment))
 
-    # Rebuild the netloc without userinfo.
-    # Preserve port if present (e.g., `registry.com:8080`).
-    # IPv6 hostnames must be wrapped in brackets (e.g., `[::1]:8080`)
-    # because `urlsplit` strips them from `hostname`.
-    host = parts.hostname
-    if ":" in host:
-        host = f"[{host}]"
-    netloc = f"{host}:{parts.port}" if parts.port else host
 
-    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+# ---------------------------------------------------------------------------
+# Bounded diagnostic sanitization
+# ---------------------------------------------------------------------------
+
+
+def _truncate_diagnostic(text: str, max_length: int) -> str:
+    """Truncate *text* deterministically without exceeding *max_length*."""
+    if len(text) <= max_length:
+        return text
+    if max_length <= len(_TRUNCATION_MARKER):
+        return _TRUNCATION_MARKER[:max_length]
+    prefix = text[: max_length - len(_TRUNCATION_MARKER)].rstrip()
+    return f"{prefix}{_TRUNCATION_MARKER}"
+
+
+def sanitize_diagnostic(
+    text: str,
+    *,
+    max_length: int = DIAGNOSTIC_MAX_LENGTH,
+    max_lines: int = DIAGNOSTIC_MAX_LINES,
+    fallback: str = _DIAGNOSTIC_FALLBACK,
+) -> str:
+    """Return bounded, credential-safe text for diagnostics and logs.
+
+    The policy is intentionally shared by subprocess, backend, exception,
+    cache, model, log, and renderer boundaries:
+
+    - strips ANSI, OSC, bidirectional/format, and unsafe control characters;
+    - removes URL userinfo and redacts common token/password forms;
+    - caps both line count and total character count;
+    - returns a deterministic fallback when no useful text remains.
+
+    Args:
+        text: Untrusted diagnostic text.
+        max_length: Maximum output characters, including a truncation marker.
+        max_lines: Maximum output lines, including a truncation marker line.
+        fallback: Text returned when sanitization leaves no content.  Pass an
+            empty string for optional model fields that may remain empty.
+
+    Returns:
+        Sanitized text whose length and line count do not exceed the limits.
+
+    Raises:
+        ValueError: If either bound is not positive.
+    """
+    if max_length <= 0:
+        msg = "max_length must be positive"
+        raise ValueError(msg)
+    if max_lines <= 0:
+        msg = "max_lines must be positive"
+        raise ValueError(msg)
+
+    cleaned = strip_control_chars(text).strip()
+    cleaned = _EMBEDDED_URL_RE.sub(
+        lambda match: redact_url_credentials(match.group(0)),
+        cleaned,
+    )
+    cleaned = _AUTHORIZATION_RE.sub(lambda match: f"{match.group('name')}: [redacted]", cleaned)
+    cleaned = _BEARER_TOKEN_RE.sub("Bearer [redacted]", cleaned)
+    cleaned = _SENSITIVE_VALUE_RE.sub(lambda match: f"{match.group('name')}=[redacted]", cleaned)
+
+    lines = cleaned.splitlines()
+    if len(lines) > max_lines:
+        lines = [*lines[: max_lines - 1], _TRUNCATION_MARKER]
+        cleaned = "\n".join(lines)
+    cleaned = _truncate_diagnostic(cleaned, max_length)
+    if cleaned:
+        return cleaned
+    return _truncate_diagnostic(strip_control_chars(fallback).strip(), max_length)
 
 
 # ---------------------------------------------------------------------------

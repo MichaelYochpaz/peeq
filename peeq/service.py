@@ -48,7 +48,7 @@ from peeq.metadata.parsing import is_pure_python_wheel, parse_email_metadata
 from peeq.models import DistType, InfoReport, PackageInfo, VersionInfo
 from peeq.resolver.base import DependencyResolver
 from peeq.resolver.provider import PackageProvider
-from peeq.sanitize import sanitize_filename
+from peeq.sanitize import sanitize_diagnostic, sanitize_filename
 
 if TYPE_CHECKING:
     from peeq.backends.base import PackageRepository
@@ -381,7 +381,7 @@ class PackageService:
             except Exception as exc:
                 # If version validation fails, still try — the version
                 # might exist
-                logger.debug("Version validation failed: %s", exc)
+                logger.debug("Version validation failed: %s", sanitize_diagnostic(str(exc)))
         else:
             resolved_version = str(base_info.latest_version)
 
@@ -416,7 +416,7 @@ class PackageService:
         if "versions" in result_map:
             v = result_map["versions"]
             if isinstance(v, BaseException):
-                errors["versions"] = str(v)
+                errors["versions"] = sanitize_diagnostic(str(v))
             else:
                 versions_total = len(v)
                 versions_list = v[:version_limit] if version_limit is not None else v
@@ -432,14 +432,14 @@ class PackageService:
         if "vulns" in result_map:
             v = result_map["vulns"]
             if isinstance(v, BaseException):
-                errors["vulns"] = str(v)
+                errors["vulns"] = sanitize_diagnostic(str(v))
             else:
                 vuln_report = v
 
         if "deps" in result_map:
             v = result_map["deps"]
             if isinstance(v, BaseException):
-                errors["deps"] = str(v)
+                errors["deps"] = sanitize_diagnostic(str(v))
             elif v is None:
                 errors["deps"] = f"No metadata available for {name}=={resolved_version}"
             else:
@@ -467,7 +467,7 @@ class PackageService:
                     "Failed to fetch requires_python for %s==%s: %s",
                     name,
                     resolved_version,
-                    exc,
+                    sanitize_diagnostic(str(exc)),
                 )
 
         return InfoReport(
@@ -543,12 +543,12 @@ class PackageService:
         # 3. Get file list (used for PEP 658 / sdist / wheel)
         try:
             files = await self._backend.files(package, version)
-        except Exception:
+        except Exception as exc:
             logger.debug(
-                "Failed to list files for %s==%s",
+                "Failed to list files for %s==%s: %s",
                 package,
                 version,
-                exc_info=True,
+                sanitize_diagnostic(str(exc)),
             )
             return None
 
@@ -1091,12 +1091,12 @@ class PackageService:
         metadata_url = f"{wheel.url}.metadata"
         try:
             response = await self._backend.get_with_retry(metadata_url)
-        except Exception:
+        except Exception as exc:
             logger.debug(
-                "HTTP error fetching PEP 658 metadata for %s==%s",
+                "HTTP error fetching PEP 658 metadata for %s==%s: %s",
                 package,
                 version,
-                exc_info=True,
+                sanitize_diagnostic(str(exc)),
             )
             return None
 
@@ -1115,9 +1115,9 @@ class PackageService:
             if computed != wheel.metadata_hash.sha256:
                 logger.warning(
                     "PEP 658 metadata hash mismatch for %s: expected %s, got %s",
-                    wheel.filename,
-                    wheel.metadata_hash.sha256,
-                    computed,
+                    sanitize_diagnostic(wheel.filename),
+                    sanitize_diagnostic(wheel.metadata_hash.sha256),
+                    sanitize_diagnostic(computed),
                 )
                 return None
 
@@ -1178,11 +1178,11 @@ class PackageService:
                     tmp_path,
                     max_download_bytes=_limit,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.debug(
-                    "Failed to download sdist %s",
-                    sdist.filename,
-                    exc_info=True,
+                    "Failed to download sdist %s: %s",
+                    sanitize_diagnostic(sdist.filename),
+                    sanitize_diagnostic(str(exc)),
                 )
                 return None
 
@@ -1215,7 +1215,7 @@ class PackageService:
         except HashMismatchError:
             logger.warning(
                 "SHA-256 mismatch storing sdist %s",
-                sdist.filename,
+                sanitize_diagnostic(sdist.filename),
             )
             return None
 
@@ -1251,11 +1251,11 @@ class PackageService:
                     tmp_path,
                     max_download_bytes=_limit,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.debug(
-                    "Failed to download wheel %s",
-                    wheel.filename,
-                    exc_info=True,
+                    "Failed to download wheel %s: %s",
+                    sanitize_diagnostic(wheel.filename),
+                    sanitize_diagnostic(str(exc)),
                 )
                 return None
 
@@ -1300,13 +1300,13 @@ class PackageService:
         """
         try:
             files = await self._backend.files(package, version)
-        except Exception:
+        except Exception as exc:
             logger.debug(
-                "Failed to list files for %s==%s (tag %s)",
+                "Failed to list files for %s==%s (tag %s): %s",
                 package,
                 version,
                 tag,
-                exc_info=True,
+                sanitize_diagnostic(str(exc)),
             )
             return None
 
@@ -1338,10 +1338,10 @@ class PackageService:
                         if computed != wheel.metadata_hash.sha256:
                             logger.warning(
                                 "PEP 658 metadata hash mismatch for %s (tag %s): expected %s, got %s",
-                                wheel.filename,
+                                sanitize_diagnostic(wheel.filename),
                                 tag,
-                                wheel.metadata_hash.sha256,
-                                computed,
+                                sanitize_diagnostic(wheel.metadata_hash.sha256),
+                                sanitize_diagnostic(computed),
                             )
                             # Fall through to wheel download
                             raise _Pep658HashMismatchError
@@ -1367,12 +1367,12 @@ class PackageService:
                     return metadata
             except _Pep658HashMismatchError:
                 pass  # Fall through to wheel download below
-            except Exception:
+            except Exception as exc:
                 logger.debug(
-                    "PEP 658 fetch failed for %s (tag %s), falling back to download",
-                    wheel.filename,
+                    "PEP 658 fetch failed for %s (tag %s), falling back to download: %s",
+                    sanitize_diagnostic(wheel.filename),
                     tag,
-                    exc_info=True,
+                    sanitize_diagnostic(str(exc)),
                 )
 
         # Download and extract from the wheel directly
@@ -1385,11 +1385,11 @@ class PackageService:
                     tmp_path,
                     max_download_bytes=_limit,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.debug(
-                    "Failed to download wheel %s",
-                    wheel.filename,
-                    exc_info=True,
+                    "Failed to download wheel %s: %s",
+                    sanitize_diagnostic(wheel.filename),
+                    sanitize_diagnostic(str(exc)),
                 )
                 return None
 
@@ -1485,11 +1485,11 @@ class PackageService:
                     tmp_path,
                     max_download_bytes=_limit,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.debug(
-                    "Failed to download %s",
-                    file.filename,
-                    exc_info=True,
+                    "Failed to download %s: %s",
+                    sanitize_diagnostic(file.filename),
+                    sanitize_diagnostic(str(exc)),
                 )
                 return None
 
@@ -1509,7 +1509,7 @@ class PackageService:
         except HashMismatchError:
             logger.warning(
                 "SHA-256 mismatch storing %s",
-                file.filename,
+                sanitize_diagnostic(file.filename),
             )
             return None
 

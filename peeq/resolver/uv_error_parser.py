@@ -29,15 +29,17 @@ import re
 from packaging.utils import canonicalize_name
 
 from peeq.resolver.models import ConflictInfo, ConflictRequirement
+from peeq.sanitize import (
+    DIAGNOSTIC_HINT_MAX_LENGTH,
+    DIAGNOSTIC_MAX_HINTS,
+    sanitize_diagnostic,
+)
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Compiled patterns
 # ---------------------------------------------------------------------------
-
-# ANSI escape codes (colors, cursor movement).
-_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 # Decorative framing glyphs emitted by miette (uv's error reporter).
 # We only strip these specific characters from the start of lines,
@@ -131,24 +133,38 @@ def _normalize(stderr: str) -> tuple[str, list[str]]:
     cleaned proof chain and *hints* is a list of `hint:`/`help:`
     blocks extracted from the end of the output.
     """
-    text = _ANSI_RE.sub("", stderr)
+    text = sanitize_diagnostic(stderr, fallback="")
     raw_lines, hint_lines = _split_body_and_hints(text)
     body_lines = _dedent_lines(raw_lines)
-    proof_body = "\n".join(body_lines)
+    proof_body = sanitize_diagnostic("\n".join(body_lines), fallback="")
 
     # Group hint lines into individual hint blocks.
     hints: list[str] = []
     current_hint: list[str] = []
     for line in hint_lines:
         if line.startswith(("hint:", "help:")) and current_hint:
-            hints.append(" ".join(current_hint))
+            hints.append(
+                sanitize_diagnostic(
+                    " ".join(current_hint),
+                    max_length=DIAGNOSTIC_HINT_MAX_LENGTH,
+                    max_lines=1,
+                    fallback="",
+                )
+            )
             current_hint = []
         if line:
             current_hint.append(line)
     if current_hint:
-        hints.append(" ".join(current_hint))
+        hints.append(
+            sanitize_diagnostic(
+                " ".join(current_hint),
+                max_length=DIAGNOSTIC_HINT_MAX_LENGTH,
+                max_lines=1,
+                fallback="",
+            )
+        )
 
-    return proof_body, hints
+    return proof_body, [hint for hint in hints if hint][:DIAGNOSTIC_MAX_HINTS]
 
 
 # ---------------------------------------------------------------------------
@@ -465,7 +481,7 @@ def _assemble(
         conflicts.append(
             ConflictInfo(
                 package="(unknown)",
-                message=proof_body,
+                message=proof_body or "uv did not provide diagnostic details.",
                 hints=hints,
             )
         )
@@ -495,8 +511,8 @@ def _parse_uv_error(stderr: str) -> tuple[list[ConflictInfo], str]:
         return _assemble(proof_body, hints, by_dep, root_reqs)
     except Exception:
         logger.debug("Failed to parse uv error output, using raw text", exc_info=True)
-        # Ultimate fallback — return cleaned text as-is.
-        cleaned = _ANSI_RE.sub("", stderr).strip()
+        # Ultimate fallback — preserve only bounded, safe context.
+        cleaned = sanitize_diagnostic(stderr)
         return (
             [ConflictInfo(package="(unknown)", message=cleaned)],
             "Could not resolve dependencies",

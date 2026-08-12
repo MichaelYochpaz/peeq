@@ -33,6 +33,7 @@ from peeq.output.base import (
     normalize_specifier_order,
     try_decode,
 )
+from peeq.sanitize import sanitize_diagnostic
 from peeq.utils import group_dependencies
 
 if TYPE_CHECKING:
@@ -1065,7 +1066,7 @@ class RichRenderer(Renderer):
 
     def render_error(self, message: str) -> None:
         """Render an error message in red."""
-        self._console.print(f"[error]Error:[/error] {rich_escape(message)}")
+        self._console.print(f"[error]Error:[/error] {rich_escape(sanitize_diagnostic(message))}")
 
     def render_not_found(self, name: str) -> None:
         """Render a 'package not found' message."""

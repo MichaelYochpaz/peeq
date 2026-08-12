@@ -22,6 +22,7 @@ from peeq import APP_NAME, __version__
 from peeq.backends.base import PackageRepository, extract_hostname
 from peeq.backends.pypi import PYPI_BASE_URL, PyPIRepository
 from peeq.backends.simple import SimpleRepository
+from peeq.sanitize import sanitize_diagnostic
 
 logger = logging.getLogger(__name__)
 
@@ -117,14 +118,14 @@ async def probe_backend(
             )
             ct = response.headers.get("content-type", "")
             if "application/vnd.pypi.simple" in ct and "json" in ct:
-                logger.debug("Probe detected PEP 691 support at %s", url)
+                logger.debug("Probe detected PEP 691 support at %s", sanitize_diagnostic(url))
                 return PyPIRepository(base_url=url, registry=registry)
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
             logger.debug(
-                "PEP 691 probe failed for %s, falling back to Simple",
-                url,
-                exc_info=True,
+                "PEP 691 probe failed for %s, falling back to Simple: %s",
+                sanitize_diagnostic(url),
+                sanitize_diagnostic(str(exc)),
             )
 
-    logger.debug("Using Simple backend for %s", url)
+    logger.debug("Using Simple backend for %s", sanitize_diagnostic(url))
     return SimpleRepository(base_url=url, registry=registry)

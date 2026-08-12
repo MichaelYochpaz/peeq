@@ -38,6 +38,7 @@ from peeq.models import (
     PackageInfo,
     VersionInfo,
 )
+from peeq.sanitize import sanitize_diagnostic
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -299,10 +300,10 @@ class SimpleRepository(PackageRepository):
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             msg = f"PEP 503 request failed for {normalized_name}: {exc.response.status_code}"
-            raise BackendError(msg) from exc
+            raise BackendError(msg) from None
         except httpx.HTTPError as exc:
             msg = f"HTTP error fetching {normalized_name}: {exc}"
-            raise BackendError(msg) from exc
+            raise BackendError(msg) from None
 
         # Guard against registries that return JSON despite the Accept
         # header.  Feeding JSON into the HTML parser would silently
@@ -333,14 +334,14 @@ class SimpleRepository(PackageRepository):
                         "Repository %s declares API version %s "
                         "(this client supports major version %d). "
                         "Behavior may differ.",
-                        url,
-                        parser.repository_version,
+                        sanitize_diagnostic(url),
+                        sanitize_diagnostic(parser.repository_version),
                         _SUPPORTED_REPO_MAJOR_VERSION,
                     )
             except ValueError:
                 logger.debug(
                     "Unparseable repository version: %s",
-                    parser.repository_version,
+                    sanitize_diagnostic(parser.repository_version),
                 )
 
         self._simple_cache[normalized_name] = parser.files

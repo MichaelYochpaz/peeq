@@ -18,6 +18,7 @@ from peeq.resolver.models import (
     SolverResult,
     TargetEnvironment,
 )
+from peeq.sanitize import DIAGNOSTIC_HINT_MAX_LENGTH, DIAGNOSTIC_MAX_HINTS, DIAGNOSTIC_MAX_LENGTH
 
 # ---------------------------------------------------------------------------
 # TargetEnvironment
@@ -241,6 +242,21 @@ class TestConflictInfo:
         conflict = ConflictInfo(package="numpy")
         with pytest.raises(ValidationError):
             conflict.package = "other"  # ty: ignore[invalid-assignment]
+
+    def test_sanitizes_and_bounds_renderer_visible_diagnostics(self) -> None:
+        url = "https://user:top-secret@registry.example/simple?token=query-secret"
+        conflict = ConflictInfo(
+            package="numpy",
+            message=f"{url}\x1b[2J " + "x" * (DIAGNOSTIC_MAX_LENGTH * 2),
+            hints=[f"hint {index}: {url} " + "y" * 2000 for index in range(20)],
+        )
+
+        assert len(conflict.message) <= DIAGNOSTIC_MAX_LENGTH
+        assert len(conflict.hints) == DIAGNOSTIC_MAX_HINTS
+        assert all(len(hint) <= DIAGNOSTIC_HINT_MAX_LENGTH for hint in conflict.hints)
+        serialized = conflict.model_dump_json()
+        for secret in ("user", "top-secret", "query-secret", "\x1b"):
+            assert secret not in serialized
 
 
 # ---------------------------------------------------------------------------

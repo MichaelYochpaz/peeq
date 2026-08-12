@@ -25,6 +25,7 @@ from peeq.models import (
     PackageInfo,
     VersionInfo,
 )
+from peeq.sanitize import sanitize_diagnostic
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -230,13 +231,13 @@ class PyPIRepository(PackageRepository):
             return data
         except httpx.HTTPStatusError as exc:
             msg = f"PEP 691 request failed for {normalized_name}: {exc.response.status_code}"
-            raise BackendError(msg) from exc
+            raise BackendError(msg) from None
         except httpx.HTTPError as exc:
             msg = f"HTTP error fetching {normalized_name}: {exc}"
-            raise BackendError(msg) from exc
+            raise BackendError(msg) from None
         except (ValueError, KeyError) as exc:
             msg = f"Invalid JSON response from {url}: {exc}"
-            raise BackendError(msg) from exc
+            raise BackendError(msg) from None
 
     # ------------------------------------------------------------------
     # Legacy JSON API (supplemental)
@@ -259,11 +260,11 @@ class PyPIRepository(PackageRepository):
                 return None
             data = response.json()
             return data.get("info")
-        except (httpx.HTTPError, ValueError, KeyError):
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
             logger.debug(
-                "Failed to fetch legacy info for %s",
+                "Failed to fetch legacy info for %s: %s",
                 normalized_name,
-                exc_info=True,
+                sanitize_diagnostic(str(exc)),
             )
             return None
 
@@ -297,7 +298,7 @@ def _determine_latest_version(
             except Exception:
                 logger.debug(
                     "Unparseable legacy version string: %s",
-                    legacy_version_str,
+                    sanitize_diagnostic(str(legacy_version_str)),
                 )
 
     # 2. Filter to stable releases
@@ -316,7 +317,7 @@ def _parse_version_strings(raw: list[str]) -> list[Version]:
         try:
             versions.append(Version(v_str))
         except Exception:  # noqa: PERF203
-            logger.debug("Skipping unparseable version string: %s", v_str)
+            logger.debug("Skipping unparseable version string: %s", sanitize_diagnostic(v_str))
     return versions
 
 
@@ -336,7 +337,11 @@ def _parse_upload_time(
         # Python 3.10 fromisoformat() does not accept the "Z" suffix.
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except (ValueError, TypeError):
-        logger.debug("Unparseable upload-time %r for %s", raw, filename)
+        logger.debug(
+            "Unparseable upload-time %r for %s",
+            sanitize_diagnostic(str(raw)),
+            sanitize_diagnostic(filename),
+        )
         return None
 
 

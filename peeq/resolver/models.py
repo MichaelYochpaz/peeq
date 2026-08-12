@@ -11,9 +11,14 @@ import os
 import platform
 import sys
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from peeq.models import PkgVersion
+from peeq.sanitize import (
+    DIAGNOSTIC_HINT_MAX_LENGTH,
+    DIAGNOSTIC_MAX_HINTS,
+    sanitize_diagnostic,
+)
 
 # ---------------------------------------------------------------------------
 # Target environment
@@ -182,6 +187,22 @@ class ConflictInfo(BaseModel, frozen=True):
     """Requirements on this package that don't contribute to the conflict
     but still constrain the solution space. Only covers packages within
     the conflict's dependency chains with exact version pins."""
+
+    @field_validator("message")
+    @classmethod
+    def _sanitize_message(cls, value: str) -> str:
+        """Bound conflict proof text before it reaches a renderer."""
+        return sanitize_diagnostic(value, fallback="")
+
+    @field_validator("hints")
+    @classmethod
+    def _sanitize_hints(cls, value: list[str]) -> list[str]:
+        """Bound hint count and size before storing solver diagnostics."""
+        hints = [
+            sanitize_diagnostic(hint, max_length=DIAGNOSTIC_HINT_MAX_LENGTH, max_lines=1, fallback="")
+            for hint in value[:DIAGNOSTIC_MAX_HINTS]
+        ]
+        return [hint for hint in hints if hint]
 
 
 # ---------------------------------------------------------------------------

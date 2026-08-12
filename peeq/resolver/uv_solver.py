@@ -36,7 +36,7 @@ from peeq.resolver.models import (
 from peeq.resolver.uv_error_parser import _parse_uv_error
 from peeq.sanitize import (
     UnsafeRequirementError,
-    redact_url_credentials,
+    sanitize_diagnostic,
     validate_requirement_string,
 )
 
@@ -226,7 +226,7 @@ class UvSolver(DependencyResolver):
             req_file.write_text("\n".join(requirements) + "\n")
 
             cmd = self._build_command(uv_bin, req_file, target_env)
-            logger.debug("Running uv: %s", " ".join(redact_url_credentials(arg) for arg in cmd))
+            logger.debug("Running uv: %s", sanitize_diagnostic(" ".join(cmd)))
 
             env = _build_uv_environment(
                 index_url=self._provider.backend.simple_url,
@@ -250,8 +250,10 @@ class UvSolver(DependencyResolver):
             except FileNotFoundError as exc:
                 raise UvNotFoundError from exc
 
+            # Sanitize stderr before either the failure path or a future
+            # successful-stderr policy can inspect it.
+            error_text = sanitize_diagnostic(stderr.decode("utf-8", errors="replace"), fallback="")
             if proc.returncode != 0:
-                error_text = stderr.decode("utf-8", errors="replace").strip()
                 self._handle_error(error_text)
 
             output = stdout.decode("utf-8", errors="replace")
@@ -347,7 +349,7 @@ class UvSolver(DependencyResolver):
                 packages[name] = Version(version_str)
                 current_name = name
             except Exception:
-                logger.debug("Skipping unparseable uv output line: %s", line)
+                logger.debug("Skipping unparseable uv output line: %s", sanitize_diagnostic(line))
                 current_name = None
 
         # -- Pass 2: invert reverse edges and build result ------------------
@@ -405,17 +407,18 @@ class UvSolver(DependencyResolver):
         Non-resolution errors (auth, network, internal) raise
         `RuntimeError` directly.
         """
-        lower = error_text.lower()
+        safe_error = sanitize_diagnostic(error_text)
+        lower = safe_error.lower()
 
         if "no solution" in lower or "conflict" in lower:
-            conflicts, summary = _parse_uv_error(error_text)
+            conflicts, summary = _parse_uv_error(safe_error)
             raise ResolutionImpossible(summary, conflicts=conflicts)
 
         if "package not found" in lower or "no versions" in lower:
-            conflicts, summary = _parse_uv_error(error_text)
+            conflicts, summary = _parse_uv_error(safe_error)
             raise ResolutionImpossible(summary, conflicts=conflicts)
 
-        msg = f"uv pip compile failed: {error_text}"
+        msg = f"uv pip compile failed: {safe_error}"
         raise RuntimeError(msg)
 
 

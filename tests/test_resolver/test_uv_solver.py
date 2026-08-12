@@ -307,6 +307,24 @@ class TestHandleError:
         with pytest.raises(RuntimeError, match="uv pip compile failed"):
             solver._handle_error("Some unknown error")
 
+    def test_generic_error_preserves_context_without_secrets_or_controls(
+        self,
+        mock_provider: PackageProvider,
+    ) -> None:
+        solver = UvSolver(provider=mock_provider)
+        diagnostic = (
+            "Authentication failed for https://user:top-secret@registry.example/simple?token=query-secret\x1b[2J"
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            solver._handle_error(diagnostic)
+
+        message = str(exc_info.value)
+        assert "Authentication failed" in message
+        assert "registry.example/simple" in message
+        for secret in ("user", "top-secret", "query-secret", "\x1b"):
+            assert secret not in message
+
 
 # ---------------------------------------------------------------------------
 # Command building

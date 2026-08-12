@@ -17,6 +17,7 @@ from peeq.cache.manager import (
     HashMismatchError,
     StoreResult,
 )
+from peeq.database.connection import open_cache_db
 from peeq.models import Dependency, PackageMetadata
 from peeq.sanitize import UnsafeFilenameError
 
@@ -349,6 +350,32 @@ class TestMetadata:
 
     def test_get_nonexistent(self, manager: CacheManager) -> None:
         assert manager.get_metadata("pypi.org", "nope", "1.0.0") is None
+
+    def test_cached_download_url_is_bounded_and_credential_safe(
+        self,
+        manager: CacheManager,
+        cache_dir: Path,
+    ) -> None:
+        """Provenance storage must not persist registry credentials or controls."""
+        manager.save_metadata(
+            registry="private.example",
+            name="test-pkg",
+            version="1.0.0",
+            sha256="a" * 64,
+            download_url=(
+                "https://user:top-secret@private.example/files/pkg.whl?project=demo&token=query-secret\x1b[2J"
+            ),
+            metadata=PackageMetadata(dependencies=[], source="wheel"),
+        )
+
+        with open_cache_db(cache_dir) as conn:
+            row = conn.execute("SELECT download_url FROM distributions").fetchone()
+
+        assert row is not None
+        stored_url = row["download_url"]
+        assert stored_url == "https://private.example/files/pkg.whl?project=demo&token=[redacted]"
+        for secret in ("user", "top-secret", "query-secret", "\x1b"):
+            assert secret not in stored_url
 
     def test_deps_known_false(self, manager: CacheManager) -> None:
         """When deps_known=False, dependencies should be None."""

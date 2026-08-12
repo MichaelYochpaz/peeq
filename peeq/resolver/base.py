@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
 from peeq import APP_NAME
+from peeq.sanitize import sanitize_diagnostic
 
 if TYPE_CHECKING:
     from peeq.resolver.models import (
@@ -39,7 +40,7 @@ class ResolutionImpossible(Exception):  # noqa: N818
         message: str,
         conflicts: list[ConflictInfo] | None = None,
     ) -> None:
-        super().__init__(message)
+        super().__init__(sanitize_diagnostic(message))
         self.conflicts: list[ConflictInfo] = conflicts or []
 
 

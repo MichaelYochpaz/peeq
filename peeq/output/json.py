@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from peeq import APP_NAME
 from peeq.output.base import LsEntry, Renderer
+from peeq.sanitize import sanitize_diagnostic
 from peeq.utils import extract_extra
 
 if TYPE_CHECKING:
@@ -542,7 +543,7 @@ class JSONRenderer(Renderer):
         self._output(
             {
                 "error": True,
-                "message": message,
+                "message": sanitize_diagnostic(message),
             }
         )
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 
 from peeq.sanitize import (
+    DIAGNOSTIC_MAX_LENGTH,
+    DIAGNOSTIC_MAX_LINES,
     InternalIPError,
     UnsafeFilenameError,
     UnsafeRequirementError,
@@ -12,6 +14,7 @@ from peeq.sanitize import (
     escape_xml_attr,
     escape_xml_specifier,
     redact_url_credentials,
+    sanitize_diagnostic,
     sanitize_filename,
     strip_control_chars,
     validate_ip_not_internal,
@@ -304,6 +307,11 @@ class TestStripControlChars:
         text = "\x1b[1mbold\x9b0m and \x9b31mred\x1b[0m"
         assert strip_control_chars(text) == "bold and red"
 
+    def test_strips_remaining_controls_and_format_characters(self) -> None:
+        """Nulls, carriage returns, and bidi controls cannot alter output."""
+        text = "first\rsecond\x00\u202esecret\u2066end"
+        assert strip_control_chars(text) == "first\nsecondsecretend"
+
 
 # ---------------------------------------------------------------------------
 # redact_url_credentials
@@ -350,6 +358,69 @@ class TestRedactUrlCredentials:
 
     def test_malformed_url_returned_as_is(self) -> None:
         assert redact_url_credentials("not-a-url") == "not-a-url"
+
+    def test_redacts_sensitive_query_values(self) -> None:
+        url = "https://registry.com/simple/?project=demo&access_token=top-secret&sig=signed-value"
+        redacted = redact_url_credentials(url)
+        assert redacted == "https://registry.com/simple/?project=demo&access_token=[redacted]&sig=[redacted]"
+        assert "top-secret" not in redacted
+        assert "signed-value" not in redacted
+
+    def test_malformed_ipv6_url_still_redacts_userinfo(self) -> None:
+        redacted = redact_url_credentials("https://user:top-secret@[broken/simple?token=query-secret")
+        assert "user" not in redacted
+        assert "top-secret" not in redacted
+        assert "query-secret" not in redacted
+        assert redacted.startswith("https://")
+
+
+# ---------------------------------------------------------------------------
+# sanitize_diagnostic
+# ---------------------------------------------------------------------------
+
+
+class TestSanitizeDiagnostic:
+    """Tests for the shared bounded diagnostic policy."""
+
+    def test_preserves_context_while_redacting_known_credentials(self) -> None:
+        text = (
+            "Registry request failed for "
+            "https://alice:top-secret@[2001:db8::1]:8443/simple?project=demo&token=query-secret\n"
+            'Authorization: Bearer header-secret and password="field secret"'
+        )
+        cleaned = sanitize_diagnostic(text)
+        assert "Registry request failed" in cleaned
+        assert "https://[2001:db8::1]:8443/simple?project=demo&token=[redacted]" in cleaned
+        assert "Authorization: [redacted]" in cleaned
+        assert "password=[redacted]" in cleaned
+        for secret in ("alice", "top-secret", "query-secret", "header-secret", "field secret"):
+            assert secret not in cleaned
+
+    def test_removes_terminal_and_unicode_controls(self) -> None:
+        text = "before\x1b[2J\x1b]8;;https://evil.example\x07link\x1b]8;;\x07\x00\u202eafter"
+        cleaned = sanitize_diagnostic(text)
+        assert cleaned == "beforelinkafter"
+        assert "\x1b" not in cleaned
+        assert "\x00" not in cleaned
+        assert "\u202e" not in cleaned
+
+    def test_bounds_character_and_line_counts(self) -> None:
+        text = "\n".join(f"line {index} " + "x" * 100 for index in range(500))
+        cleaned = sanitize_diagnostic(text)
+        assert len(cleaned) <= DIAGNOSTIC_MAX_LENGTH
+        assert len(cleaned.splitlines()) <= DIAGNOSTIC_MAX_LINES
+        assert cleaned.endswith("... [truncated]")
+
+    def test_empty_or_control_only_input_has_deterministic_fallback(self) -> None:
+        assert sanitize_diagnostic("\x00\x1b[2J") == "No diagnostic details available."
+
+    def test_rejects_non_positive_length_bound(self) -> None:
+        with pytest.raises(ValueError, match="max_length must be positive"):
+            sanitize_diagnostic("error", max_length=0)
+
+    def test_rejects_non_positive_line_bound(self) -> None:
+        with pytest.raises(ValueError, match="max_lines must be positive"):
+            sanitize_diagnostic("error", max_lines=0)
 
 
 # ---------------------------------------------------------------------------

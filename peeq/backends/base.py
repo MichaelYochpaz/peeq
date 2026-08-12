@@ -31,7 +31,7 @@ from peeq.models import (
     DownloadResult,
     HashDigest,
 )
-from peeq.sanitize import InternalIPError, validate_ip_not_internal
+from peeq.sanitize import InternalIPError, sanitize_diagnostic, validate_ip_not_internal
 
 if TYPE_CHECKING:
     import sys
@@ -171,6 +171,10 @@ async def _validate_url_not_internal(
 
 class BackendError(Exception):
     """Error communicating with a package registry."""
+
+    def __init__(self, message: str) -> None:
+        """Store only bounded, credential-safe registry diagnostics."""
+        super().__init__(sanitize_diagnostic(message))
 
 
 class ResponseTooLargeError(BackendError):
@@ -361,7 +365,7 @@ class PackageRepository(ABC):
                 logger.debug(
                     "Retryable %d from %s (attempt %d/%d), backing off %.2fs",
                     response.status_code,
-                    url,
+                    sanitize_diagnostic(url),
                     attempt + 1,
                     _MAX_RETRIES,
                     delay,
@@ -554,7 +558,7 @@ def parse_version_from_filename(filename: str) -> Version | None:
             _name, ver = parse_sdist_filename(filename)
             return ver
     except Exception:
-        logger.debug("Cannot parse version from filename: %s", filename)
+        logger.debug("Cannot parse version from filename: %s", sanitize_diagnostic(filename))
 
     # .tar.bz2, .egg, etc. — not supported by packaging.utils
     # Try a best-effort regex parse for common patterns
