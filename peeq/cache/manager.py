@@ -11,9 +11,10 @@ Directory layout::
     +-- cache.db-wal                     # WAL file (transient, managed by SQLite)
     +-- cache.db-shm                     # Shared memory (transient)
     +-- archives/
-        +-- pypi.org/
-            +-- requests/
-                +-- 2.31.0.tar.gz
+        +-- sha256/
+            +-- 1a/                      # First two hash characters
+                +-- 1a2b.../
+                    +-- requests-2.31.0.tar.gz
 
 Key design decisions:
 
@@ -31,7 +32,7 @@ import logging
 import os
 import shutil
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import TYPE_CHECKING, Any
 
 from peeq.config import get_settings
@@ -226,6 +227,9 @@ class CacheManager:
 
         Returns the distribution ID.
         """
+        if archive_path is not None:
+            archive_path = self._canonical_archive_path(archive_path)
+
         now = int(time.time())
         with open_cache_db(self._cache_dir) as conn:
             pkg_id = db.ensure_package(
@@ -312,13 +316,14 @@ class CacheManager:
             existing = db.find_by_hash(conn, sha256)
 
         deduplicated = False
-        rel_path = f"archives/{registry}/{name}/{sanitize_filename(filename)}"
+        safe_filename = sanitize_filename(filename)
+        rel_path = f"archives/sha256/{sha256[:2]}/{sha256}/{safe_filename}"
 
         if existing and existing["archive_path"]:
-            existing_abs = self._cache_dir / existing["archive_path"]
-            if existing_abs.exists():
+            existing_abs = self._get_existing_archive_file(existing["archive_path"])
+            if existing_abs is not None:
                 # Reuse existing archive file path
-                rel_path = existing["archive_path"]
+                rel_path = existing_abs.relative_to(self._cache_dir.resolve(strict=False)).as_posix()
                 deduplicated = True
                 logger.debug(
                     "Deduplicating %s — same hash as %s/%s",
@@ -335,8 +340,11 @@ class CacheManager:
             # Uses Path.replace() per CONTRIBUTING.md (cross-platform
             # atomic move, unlike Path.rename() which raises
             # FileExistsError on Windows).
-            abs_path = self._cache_dir / rel_path
+            abs_path = self._resolve_archive_path(rel_path)
             abs_path.parent.mkdir(parents=True, exist_ok=True)
+            # Resolve again after creating parents so an existing symlink in
+            # the newly materialized path cannot redirect the write.
+            abs_path = self._resolve_archive_path(rel_path)
             tmp_path = abs_path.with_suffix(f"{abs_path.suffix}.{os.getpid()}.tmp")
             try:
                 tmp_path.write_bytes(archive_data)
@@ -405,8 +413,8 @@ class CacheManager:
             if row is None:
                 return None
 
-            abs_path = self._cache_dir / row["archive_path"]
-            if not abs_path.exists():
+            abs_path = self._get_existing_archive_file(row["archive_path"])
+            if abs_path is None:
                 return None
 
             # Touch LRU
@@ -612,8 +620,8 @@ class CacheManager:
         if row is None:
             return False
 
-        abs_path = self._cache_dir / row["archive_path"]
-        if not abs_path.exists():
+        abs_path = self._get_existing_archive_file(row["archive_path"])
+        if abs_path is None:
             return False
 
         return self.compute_sha256_file(abs_path) == row["sha256"]
@@ -637,7 +645,9 @@ class CacheManager:
                 conn.execute("DELETE FROM packages")
 
         # Remove archive files
-        if self._archives_dir.exists():
+        if self._archives_dir.is_symlink():
+            self._archives_dir.unlink(missing_ok=True)
+        elif self._archives_dir.exists():
             shutil.rmtree(self._archives_dir, ignore_errors=True)
 
         return evicted
@@ -733,20 +743,81 @@ class CacheManager:
         Shared by both size-based soft eviction and age-based hard eviction.
         """
         for rel_path in rel_paths:
-            abs_path = self._cache_dir / rel_path
+            try:
+                abs_path = self._resolve_archive_path(rel_path)
+            except UnsafeArchivePathError:
+                logger.warning("Ignoring unsafe archive path in cache index during deletion.")
+                continue
+
+            if abs_path.is_dir():
+                logger.warning("Ignoring archive path that refers to a directory during deletion.")
+                continue
+
             abs_path.unlink(missing_ok=True)
             self._cleanup_empty_dirs(abs_path.parent)
 
     def _cleanup_empty_dirs(self, directory: Path) -> None:
         """Remove empty directories up to (but not including) archives_dir."""
         current = directory
-        archives_resolved = self._archives_dir.resolve()
-        while current.resolve() != archives_resolved and current != current.parent:
+        archives_root = self._cache_dir.resolve(strict=False) / "archives"
+        while current != archives_root and current.is_relative_to(archives_root):
             try:
                 current.rmdir()  # Only succeeds if empty
             except OSError:
                 break
             current = current.parent
+
+    def _get_existing_archive_file(self, rel_path: str) -> Path | None:
+        """Return a contained archive file, ignoring unsafe legacy rows."""
+        try:
+            abs_path = self._resolve_archive_path(rel_path)
+        except UnsafeArchivePathError:
+            logger.warning("Ignoring unsafe archive path in cache index.")
+            return None
+
+        return abs_path if abs_path.is_file() else None
+
+    def _canonical_archive_path(self, rel_path: str) -> str:
+        """Return the canonical cache-relative form of a contained archive path."""
+        abs_path = self._resolve_archive_path(rel_path)
+        return abs_path.relative_to(self._cache_dir.resolve(strict=False)).as_posix()
+
+    def _resolve_archive_path(self, rel_path: str) -> Path:
+        """Resolve an archive path and prove it remains inside `archives_dir`.
+
+        Database paths are untrusted because older peeq versions stored them
+        without a containment check. Both POSIX and Windows absolute/traversal
+        forms are rejected regardless of the current operating system.
+        """
+        try:
+            posix_path = PurePosixPath(rel_path)
+            windows_path = PureWindowsPath(rel_path)
+            if (
+                not rel_path
+                or "\x00" in rel_path
+                or "\\" in rel_path
+                or posix_path.is_absolute()
+                or windows_path.is_absolute()
+                or windows_path.drive
+                or not posix_path.parts[1:]
+                or posix_path.parts[0] != "archives"
+                or ".." in posix_path.parts
+            ):
+                raise UnsafeArchivePathError
+
+            cache_root = self._cache_dir.resolve(strict=False)
+            archives_root = cache_root / "archives"
+            if self._archives_dir.resolve(strict=False) != archives_root:
+                raise UnsafeArchivePathError
+
+            abs_path = archives_root.joinpath(*posix_path.parts[1:]).resolve(strict=False)
+            if not abs_path.is_relative_to(archives_root):
+                raise UnsafeArchivePathError
+        except (OSError, RuntimeError, ValueError) as exc:
+            msg = "Archive path is outside the cache archive root"
+            raise UnsafeArchivePathError(msg) from exc
+
+        return abs_path
 
 
 # ---------------------------------------------------------------------------
@@ -792,3 +863,7 @@ class HashMismatchError(Exception):
 
 class ArchiveNotCachedError(Exception):
     """The requested archive is not in the cache."""
+
+
+class UnsafeArchivePathError(ValueError):
+    """An archive path escaped or could escape the cache archive root."""

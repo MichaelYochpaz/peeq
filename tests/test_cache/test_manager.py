@@ -16,6 +16,7 @@ from peeq.cache.manager import (
     CacheManager,
     HashMismatchError,
     StoreResult,
+    UnsafeArchivePathError,
 )
 from peeq.database.connection import open_cache_db
 from peeq.models import Dependency, PackageMetadata
@@ -190,6 +191,35 @@ class TestStoreArchive:
         abs_path = manager.cache_dir / result.archive_path
         assert abs_path.exists()
         assert abs_path.read_bytes() == sample_archive
+
+    @pytest.mark.parametrize(
+        ("registry", "name"),
+        [
+            ("../outside", "pkg"),
+            ("/absolute/index", "/absolute/package"),
+            ("private\\index", "..\\package"),
+            ("https://régistry.example/simple", "πακέτο\u2215name"),
+        ],
+    )
+    def test_uses_content_addressed_path_for_untrusted_identifiers(
+        self,
+        manager: CacheManager,
+        sample_archive: bytes,
+        registry: str,
+        name: str,
+    ) -> None:
+        archive_hash = _sha256(sample_archive)
+
+        result = manager.store_archive(
+            registry=registry,
+            name=name,
+            version="1.0.0",
+            archive_data=sample_archive,
+            filename="pkg-1.0.0.tar.gz",
+        )
+
+        assert result.archive_path == f"archives/sha256/{archive_hash[:2]}/{archive_hash}/pkg-1.0.0.tar.gz"
+        assert (manager.cache_dir / result.archive_path).resolve().is_relative_to(manager.archives_dir.resolve())
 
     def test_hash_mismatch(self, manager: CacheManager, sample_archive: bytes) -> None:
         with pytest.raises(HashMismatchError, match="SHA-256 mismatch"):
@@ -433,6 +463,25 @@ class TestGetArchivePath:
         path = manager.get_archive_path("pypi.org", "pkg", "1.0.0")
         assert path is not None
         assert path.exists()
+
+    def test_reads_contained_legacy_path(self, manager: CacheManager, sample_archive: bytes) -> None:
+        archive_hash = _sha256(sample_archive)
+        rel_path = "archives/pypi.org/pkg/pkg-1.0.0.tar.gz"
+        abs_path = manager.cache_dir / rel_path
+        abs_path.parent.mkdir(parents=True)
+        abs_path.write_bytes(sample_archive)
+        manager.save_metadata(
+            registry="pypi.org",
+            name="pkg",
+            version="1.0.0",
+            sha256=archive_hash,
+            archive_path=rel_path,
+            size_bytes=len(sample_archive),
+            metadata=PackageMetadata(dependencies=[], source="wheel"),
+        )
+
+        assert manager.get_archive_path("pypi.org", "pkg", "1.0.0") == abs_path.resolve()
+        assert manager.verify_archive("pypi.org", "pkg", "1.0.0") is True
 
     def test_returns_none_when_not_cached(self, manager: CacheManager) -> None:
         assert manager.get_archive_path("pypi.org", "nope", "1.0.0") is None
@@ -1029,3 +1078,160 @@ class TestFilenameSanitization:
                 archive_data=b"fake data",
                 filename="../../../evil.tar.gz",
             )
+
+
+# ---------------------------------------------------------------------------
+# Integration: archive path containment
+# ---------------------------------------------------------------------------
+
+
+class TestArchivePathContainment:
+    """Prove archive operations cannot escape the physical archive root."""
+
+    @pytest.mark.parametrize(
+        "archive_path",
+        [
+            "../outside.tar.gz",
+            "/tmp/outside.tar.gz",
+            "C:\\outside.tar.gz",
+            "archives/../../outside.tar.gz",
+            "archives\\outside.tar.gz",
+        ],
+    )
+    def test_save_metadata_rejects_uncontained_archive_path(
+        self,
+        manager: CacheManager,
+        archive_path: str,
+    ) -> None:
+        with pytest.raises(UnsafeArchivePathError, match="outside the cache archive root"):
+            manager.save_metadata(
+                registry="pypi.org",
+                name="pkg",
+                version="1.0.0",
+                sha256="a" * 64,
+                archive_path=archive_path,
+                metadata=PackageMetadata(dependencies=[], source="wheel"),
+            )
+
+    def test_legacy_traversal_row_cannot_be_read_or_verified(
+        self,
+        manager: CacheManager,
+        cache_dir: Path,
+        sample_archive: bytes,
+    ) -> None:
+        outside = cache_dir.parent / "outside.tar.gz"
+        outside.write_bytes(sample_archive)
+        manager.save_metadata(
+            registry="pypi.org",
+            name="pkg",
+            version="1.0.0",
+            sha256=_sha256(sample_archive),
+            metadata=PackageMetadata(dependencies=[], source="wheel"),
+        )
+        with open_cache_db(cache_dir) as conn, conn:
+            conn.execute("UPDATE distributions SET archive_path = ?", ("../outside.tar.gz",))
+
+        assert manager.get_archive_path("pypi.org", "pkg", "1.0.0") is None
+        assert manager.verify_archive("pypi.org", "pkg", "1.0.0") is False
+        assert outside.read_bytes() == sample_archive
+
+    def test_legacy_traversal_row_cannot_be_deleted(
+        self,
+        manager: CacheManager,
+        cache_dir: Path,
+        sample_archive: bytes,
+    ) -> None:
+        outside = cache_dir.parent / "outside.tar.gz"
+        outside.write_bytes(sample_archive)
+        manager.save_metadata(
+            registry="pypi.org",
+            name="pkg",
+            version="1.0.0",
+            sha256=_sha256(sample_archive),
+            metadata=PackageMetadata(dependencies=[], source="wheel"),
+        )
+        with open_cache_db(cache_dir) as conn, conn:
+            conn.execute(
+                "UPDATE distributions SET archive_path = ?, last_accessed_at = 0",
+                ("../outside.tar.gz",),
+            )
+
+        assert manager.clear(older_than_seconds=0) == 1
+        assert outside.read_bytes() == sample_archive
+
+    def test_deduplication_ignores_unsafe_legacy_path(
+        self,
+        manager: CacheManager,
+        cache_dir: Path,
+        sample_archive: bytes,
+    ) -> None:
+        outside = cache_dir.parent / "outside.tar.gz"
+        outside.write_bytes(sample_archive)
+        archive_hash = _sha256(sample_archive)
+        manager.save_metadata(
+            registry="pypi.org",
+            name="pkg",
+            version="1.0.0",
+            sha256=archive_hash,
+            metadata=PackageMetadata(dependencies=[], source="wheel"),
+        )
+        with open_cache_db(cache_dir) as conn, conn:
+            conn.execute("UPDATE distributions SET archive_path = ?", ("../outside.tar.gz",))
+
+        result = manager.store_archive(
+            registry="pypi.org",
+            name="pkg",
+            version="1.0.0",
+            archive_data=sample_archive,
+            filename="pkg-1.0.0.tar.gz",
+        )
+
+        assert result.deduplicated is False
+        assert result.archive_path.startswith(f"archives/sha256/{archive_hash[:2]}/{archive_hash}/")
+        assert outside.read_bytes() == sample_archive
+
+    def test_symlinked_archive_parent_cannot_redirect_write(
+        self,
+        manager: CacheManager,
+        cache_dir: Path,
+        sample_archive: bytes,
+    ) -> None:
+        outside = cache_dir.parent / "outside"
+        outside.mkdir()
+        sha256_dir = manager.archives_dir / "sha256"
+        sha256_dir.parent.mkdir(parents=True)
+        try:
+            sha256_dir.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            pytest.skip("Directory symlinks are not available on this platform")
+
+        with pytest.raises(UnsafeArchivePathError, match="outside the cache archive root"):
+            manager.store_archive(
+                registry="pypi.org",
+                name="pkg",
+                version="1.0.0",
+                archive_data=sample_archive,
+                filename="pkg-1.0.0.tar.gz",
+            )
+
+        assert list(outside.iterdir()) == []
+
+    def test_clear_all_unlinks_archive_root_symlink_without_deleting_target(
+        self,
+        manager: CacheManager,
+        cache_dir: Path,
+    ) -> None:
+        manager.upsert_package(registry="pypi.org", name="pkg")
+        outside = cache_dir.parent / "outside"
+        outside.mkdir()
+        sentinel = outside / "keep.txt"
+        sentinel.write_text("keep")
+        try:
+            manager.archives_dir.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            pytest.skip("Directory symlinks are not available on this platform")
+
+        manager.clear()
+
+        assert not manager.archives_dir.is_symlink()
+        assert sentinel.read_text() == "keep"

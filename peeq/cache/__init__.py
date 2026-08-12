@@ -8,6 +8,7 @@ Exceptions
 ----------
 - `HashMismatchError` — SHA-256 verification failed.
 - `ArchiveNotCachedError` — archive not in cache.
+- `UnsafeArchivePathError` — archive path escaped the cache root.
 """
 
 from peeq.cache.manager import (
@@ -15,6 +16,7 @@ from peeq.cache.manager import (
     CacheManager,
     HashMismatchError,
     StoreResult,
+    UnsafeArchivePathError,
 )
 
 __all__ = [
@@ -22,4 +24,5 @@ __all__ = [
     "CacheManager",
     "HashMismatchError",
     "StoreResult",
+    "UnsafeArchivePathError",
 ]
