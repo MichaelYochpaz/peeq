@@ -288,6 +288,11 @@ class PackageRepository(ABC):
         """Base URL of the repository (without trailing slash)."""
         return self._base_url
 
+    @property
+    def simple_url(self) -> str:
+        """PEP 503 Simple API root used for dependency resolution."""
+        return self._base_url
+
     # ------------------------------------------------------------------
     # httpx client lifecycle
     # ------------------------------------------------------------------

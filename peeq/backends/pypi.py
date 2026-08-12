@@ -80,6 +80,11 @@ class PyPIRepository(PackageRepository):
         self._json_api_url = f"{self._base_url}/pypi"
         self._simple_cache: dict[str, dict[str, Any] | None] = {}
 
+    @property
+    def simple_url(self) -> str:
+        """PEP 503/691 Simple API root used for dependency resolution."""
+        return self._simple_url
+
     async def check(self, name: str) -> PackageInfo | None:
         """Check if a package exists on PyPI, returning basic info.
 

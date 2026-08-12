@@ -109,11 +109,13 @@ class TestPyPIConstructor:
     def test_default_urls(self):
         repo = PyPIRepository()
         assert repo.base_url == PYPI_BASE_URL
+        assert repo.simple_url == "https://pypi.org/simple"
         assert repo.registry == "pypi.org"
 
     def test_custom_base_url(self):
         repo = PyPIRepository(base_url="https://test.pypi.org")
         assert repo.base_url == "https://test.pypi.org"
+        assert repo.simple_url == "https://test.pypi.org/simple"
         assert repo.registry == "test.pypi.org"
 
 

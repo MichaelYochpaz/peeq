@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,6 +23,7 @@ from peeq.resolver.provider import PackageProvider
 from peeq.resolver.uv_solver import (
     _MIN_UV_VERSION,
     UvSolver,
+    _build_uv_environment,
     _check_uv_version,
     _find_uv,
     _to_uv_platform,
@@ -48,6 +50,7 @@ def _make_mock_provider(base_url: str) -> PackageProvider:
     mock_fetcher = AsyncMock()
     mock_backend = AsyncMock()
     mock_backend.base_url = base_url
+    mock_backend.simple_url = base_url
     return PackageProvider(
         cache=mock_cache,
         metadata_fetcher=mock_fetcher,
@@ -357,6 +360,84 @@ class TestBuildCommand:
         assert "--index-url" not in cmd
         assert "https://private.registry.com" not in cmd
 
+
+class TestBuildUvEnvironment:
+    """Tests for the isolated uv subprocess environment."""
+
+    def test_discards_ambient_uv_pip_and_unrelated_controls(self, tmp_path: Path) -> None:
+        inherited = {
+            "Path": "/tools",
+            "SystemRoot": r"C:\Windows",
+            "HOME": "/home/tester",
+            "LC_ALL": "C.UTF-8",
+            "UV_CONSTRAINT": "/tmp/constraints.txt",
+            "UV_BUILD_CONSTRAINT": "/tmp/build-constraints.txt",
+            "uv_override": "/tmp/override.txt",
+            "UV_EXCLUDE": "/tmp/excludes.txt",
+            "Uv_InDeX": "https://attacker.invalid/simple",
+            "UV_INDEX_URL": "https://legacy.invalid/simple",
+            "UV_FIND_LINKS": "/tmp/wheels",
+            "UV_PREVIEW": "1",
+            "UV_NO_BUILD": "0",
+            "UV_NO_BUILD_ISOLATION": "1",
+            "UV_INSECURE_HOST": "private.example",
+            "UV_SYSTEM_CERTS": "true",
+            "UV_OFFLINE": "1",
+            "UV_PYTHON": "/untrusted/python",
+            "UV_PYTHON_DOWNLOADS": "automatic",
+            "UV_CACHE_DIR": "/shared/uv-cache",
+            "UV_KEYRING_PROVIDER": "subprocess",
+            "UV_HTTP_TIMEOUT": "900",
+            "PIP_INDEX_URL": "https://pip.invalid/simple",
+            "pip_constraint": "/tmp/pip-constraints.txt",
+            "VIRTUAL_ENV": "/unrelated/venv",
+            "CONDA_PREFIX": "/unrelated/conda",
+            "RUST_LOG": "trace",
+        }
+
+        env = _build_uv_environment(
+            index_url="https://packages.example/simple",
+            cache_dir=tmp_path / "uv-cache",
+            environ=inherited,
+        )
+
+        assert env == {
+            "Path": "/tools",
+            "SystemRoot": r"C:\Windows",
+            "HOME": "/home/tester",
+            "LC_ALL": "C.UTF-8",
+            "UV_DEFAULT_INDEX": "https://packages.example/simple",
+            "UV_CACHE_DIR": str(tmp_path / "uv-cache"),
+            "UV_CREDENTIALS_DIR": str(tmp_path / "uv-cache" / "credentials"),
+            "UV_KEYRING_PROVIDER": "disabled",
+            "NETRC": os.devnull,
+            "UV_NO_WRAP": "1",
+        }
+
+    def test_preserves_standard_proxy_and_certificate_controls(self, tmp_path: Path) -> None:
+        inherited = {
+            "HTTP_PROXY": "http://proxy.example:8080",
+            "https_proxy": "http://secure-proxy.example:8080",
+            "ALL_PROXY": "socks5://proxy.example:1080",
+            "no_proxy": "localhost,127.0.0.1",
+            "SSL_CERT_FILE": "/etc/certs/bundle.pem",
+            "ssl_cert_dir": "/etc/certs",
+            "SSL_CLIENT_CERT": "/etc/certs/client.pem",
+        }
+
+        env = _build_uv_environment(
+            index_url="https://packages.example/simple",
+            cache_dir=tmp_path / "uv-cache",
+            environ=inherited,
+        )
+
+        for name, value in inherited.items():
+            assert env[name] == value
+
+
+class TestBuildCommandTargets:
+    """Tests for target and prerelease command options."""
+
     def test_python_version_flag(self, mock_provider: PackageProvider, tmp_path: Path) -> None:
         solver = UvSolver(provider=mock_provider)
 
@@ -543,13 +624,14 @@ class TestResolve:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Pass custom index URL via UV_INDEX_URL env var, not CLI args."""
+        """Pass the exact private index via UV_DEFAULT_INDEX, not CLI args."""
         monkeypatch.setattr("peeq.resolver.uv_solver._uv_version_checked", True)
 
         mock_cache = MagicMock()
         mock_fetcher = AsyncMock()
         mock_backend = AsyncMock()
         mock_backend.base_url = "https://user:token@private.registry.com/simple/"
+        mock_backend.simple_url = "https://user:token@private.registry.com/simple"
         provider = PackageProvider(
             cache=mock_cache,
             metadata_fetcher=mock_fetcher,
@@ -580,7 +662,32 @@ class TestResolve:
 
         # URL must be in the env dict.
         env = mock_exec.call_args.kwargs["env"]
-        assert env["UV_INDEX_URL"] == ("https://user:token@private.registry.com/simple/")
+        assert env["UV_DEFAULT_INDEX"] == "https://user:token@private.registry.com/simple"
+        assert "UV_INDEX_URL" not in env
+
+    async def test_misleading_pypi_hostname_uses_selected_simple_endpoint(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Do not mistake a PyPI-looking private hostname for public PyPI."""
+        monkeypatch.setattr("peeq.resolver.uv_solver._uv_version_checked", True)
+        provider = _make_mock_provider("https://pypi.org.internal.example/simple")
+        solver = UvSolver(provider=provider)
+        mock_proc = AsyncMock(returncode=0)
+        mock_proc.communicate.return_value = (b"package==1.0.0\n", b"")
+
+        with (
+            patch("peeq.resolver.uv_solver._find_uv", return_value="/usr/bin/uv"),
+            patch(
+                "asyncio.create_subprocess_exec",
+                new_callable=AsyncMock,
+                return_value=mock_proc,
+            ) as mock_exec,
+        ):
+            await solver.resolve(["package"], TargetEnvironment(python_version="3.12"))
+
+        env = mock_exec.call_args.kwargs["env"]
+        assert env["UV_DEFAULT_INDEX"] == "https://pypi.org.internal.example/simple"
 
     async def test_binary_not_found(
         self,
@@ -623,7 +730,6 @@ class TestRealUvSafetyContract:
             monkeypatch,
             uv_bin=real_uv_bin,
             cache_dir=tmp_path / "uv-cache",
-            sentinel=uv_test_index.build_sentinel,
         )
         solver = UvSolver(provider=_make_mock_provider(uv_test_index.primary_url))
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -663,7 +769,6 @@ class TestRealUvSafetyContract:
             monkeypatch,
             uv_bin=real_uv_bin,
             cache_dir=tmp_path / "uv-cache",
-            sentinel=uv_test_index.build_sentinel,
         )
         solver = UvSolver(provider=_make_mock_provider(uv_test_index.primary_url))
 
@@ -690,7 +795,6 @@ class TestRealUvSafetyContract:
             monkeypatch,
             uv_bin=real_uv_bin,
             cache_dir=tmp_path / "uv-cache",
-            sentinel=uv_test_index.build_sentinel,
         )
         solver = UvSolver(provider=_make_mock_provider(uv_test_index.primary_url))
 
@@ -714,9 +818,8 @@ class TestRealUvSafetyContract:
             monkeypatch,
             uv_bin=real_uv_bin,
             cache_dir=tmp_path / "unsafe-control-cache",
-            sentinel=uv_test_index.build_sentinel,
         )
-        monkeypatch.setenv("UV_INDEX_URL", uv_test_index.primary_url)
+        monkeypatch.setenv("UV_DEFAULT_INDEX", uv_test_index.primary_url)
         requirements_file = tmp_path / "unsafe-control.in"
         requirements_file.write_text(
             "peeq-fixture-source-only==1.0.0\n",
@@ -742,19 +845,46 @@ class TestRealUvSafetyContract:
         assert proc.returncode == 0, stderr.decode("utf-8", errors="replace")
         assert uv_test_index.build_sentinel.read_text(encoding="utf-8") == "executed"
 
+    async def test_inherited_indexes_cannot_change_the_selected_universe(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        real_uv_bin: str,
+        uv_test_index: UvTestIndex,
+    ) -> None:
+        """Resolve solely from peeq's index despite hostile parent settings."""
+        _configure_real_uv(
+            monkeypatch,
+            uv_bin=real_uv_bin,
+            cache_dir=tmp_path / "uv-cache",
+        )
+        monkeypatch.setenv("UV_INDEX", uv_test_index.secondary_url)
+        monkeypatch.setenv("UV_INDEX_URL", uv_test_index.secondary_url)
+        monkeypatch.setenv("UV_DEFAULT_INDEX", uv_test_index.secondary_url)
+        monkeypatch.setenv("UV_INDEX_STRATEGY", "unsafe-best-match")
+        monkeypatch.setenv("PIP_INDEX_URL", uv_test_index.secondary_url)
+        solver = UvSolver(provider=_make_mock_provider(uv_test_index.primary_url))
+
+        result = await solver.resolve(
+            ["peeq-fixture-collision"],
+            TargetEnvironment(python_version=f"{sys.version_info.major}.{sys.version_info.minor}"),
+        )
+
+        assert [(dependency.name, str(dependency.version)) for dependency in result.resolved] == [
+            ("peeq-fixture-collision", "1.0.0")
+        ]
+
 
 def _configure_real_uv(
     monkeypatch: pytest.MonkeyPatch,
     *,
     uv_bin: str,
     cache_dir: Path,
-    sentinel: Path,
 ) -> None:
-    """Select a real uv executable and isolate its test cache and sentinel."""
+    """Select a real uv executable and isolate its test cache."""
     monkeypatch.setattr("peeq.resolver.uv_solver._uv_version_checked", False)
     monkeypatch.setenv("PEEQ_UV_BIN", uv_bin)
     monkeypatch.setenv("UV_CACHE_DIR", str(cache_dir))
-    monkeypatch.setenv("PEEQ_TEST_BUILD_SENTINEL", str(sentinel))
 
 
 # ---------------------------------------------------------------------------

@@ -97,6 +97,7 @@ class TestConstructor:
     def test_base_url_trailing_slash_stripped(self):
         backend = _StubBackend(base_url="https://example.com/simple/")
         assert backend.base_url == "https://example.com/simple"
+        assert backend.simple_url == "https://example.com/simple"
 
     def test_registry_from_url(self):
         backend = _StubBackend(base_url="https://pypi.org/simple")

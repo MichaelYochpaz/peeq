@@ -41,6 +41,8 @@ from peeq.sanitize import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from peeq.resolver.models import TargetEnvironment
     from peeq.resolver.provider import PackageProvider
 
@@ -56,6 +58,38 @@ _MIN_UV_VERSION = Version("0.3.0")
 
 # Module-level cache for the version check (run once per process).
 _uv_version_checked: bool = False
+
+# Environment required for cross-platform process startup and uv's documented
+# proxy/certificate controls. Matching is case-insensitive so this policy also
+# works with Windows environment mappings.
+_INHERITED_ENV_NAMES = frozenset(
+    {
+        "ALL_PROXY",
+        "APPDATA",
+        "COMSPEC",
+        "HOME",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "LANG",
+        "LOCALAPPDATA",
+        "NO_PROXY",
+        "PATH",
+        "PATHEXT",
+        "SSL_CERT_DIR",
+        "SSL_CERT_FILE",
+        "SSL_CLIENT_CERT",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "USERPROFILE",
+        "WINDIR",
+    }
+)
+_INHERITED_ENV_PREFIXES = ("LC_",)
 
 
 def _find_uv() -> str | None:
@@ -107,6 +141,42 @@ def _check_uv_version(uv_bin: str) -> None:
     _uv_version_checked = True
 
 
+def _build_uv_environment(
+    *,
+    index_url: str,
+    cache_dir: Path,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Build an isolated environment for one uv resolver invocation.
+
+    Preserve only cross-platform process variables and uv's documented
+    proxy/certificate controls. All uv and pip settings from the parent are
+    discarded case-insensitively, then the resolver's owned settings are set
+    explicitly.
+    """
+    source = os.environ if environ is None else environ
+    env = {
+        key: value
+        for key, value in source.items()
+        if (normalized := key.upper()) in _INHERITED_ENV_NAMES or normalized.startswith(_INHERITED_ENV_PREFIXES)
+    }
+    env.update(
+        {
+            # Keep the selected Simple endpoint out of process-list-visible
+            # arguments, where private-index credentials would be exposed.
+            "UV_DEFAULT_INDEX": index_url,
+            # Do not reuse ambient uv cache or credential-store state.
+            "UV_CACHE_DIR": str(cache_dir),
+            "UV_CREDENTIALS_DIR": str(cache_dir / "credentials"),
+            "UV_KEYRING_PROVIDER": "disabled",
+            "NETRC": os.devnull,
+            # Keep PubGrub proof clauses on one line for the current parser.
+            "UV_NO_WRAP": "1",
+        }
+    )
+    return env
+
+
 class UvSolver(DependencyResolver):
     """Dependency solver using the `uv` CLI.
 
@@ -151,24 +221,17 @@ class UvSolver(DependencyResolver):
         _check_uv_version(uv_bin)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            req_file = Path(tmp_dir) / "requirements.in"
+            tmp_path = Path(tmp_dir)
+            req_file = tmp_path / "requirements.in"
             req_file.write_text("\n".join(requirements) + "\n")
 
             cmd = self._build_command(uv_bin, req_file, target_env)
             logger.debug("Running uv: %s", " ".join(redact_url_credentials(arg) for arg in cmd))
 
-            # UV_NO_WRAP disables prose line wrapping in uv's error
-            # output (a public env var since uv v0.0.5, used by uv's
-            # own test suite).  This makes each PubGrub proof clause
-            # a single line, simplifying regex extraction in the
-            # error parser.
-            env = {**os.environ, "UV_NO_WRAP": "1"}
-
-            # Pass custom index URL via environment variable (not CLI
-            # argument) to avoid exposing credentials in process listings.
-            base_url = self._provider.backend.base_url
-            if "pypi.org" not in base_url:
-                env["UV_INDEX_URL"] = base_url
+            env = _build_uv_environment(
+                index_url=self._provider.backend.simple_url,
+                cache_dir=tmp_path / "uv-cache",
+            )
 
             try:
                 proc = await asyncio.create_subprocess_exec(
@@ -217,9 +280,8 @@ class UvSolver(DependencyResolver):
             "--quiet",
         ]
 
-        # NOTE: Custom index URL is passed via UV_INDEX_URL env var
-        # in resolve(), not as a CLI argument.  This prevents credential
-        # exposure in process listings (e.g. ps, /proc, Task Manager).
+        # The exact Simple endpoint is passed via UV_DEFAULT_INDEX in the
+        # isolated subprocess environment, not in process-list-visible args.
 
         # Target Python version.
         if target_env.python_version:

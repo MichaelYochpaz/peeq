@@ -86,7 +86,7 @@ def build_uv_test_index(root: Path) -> UvTestIndex:
         _add_wheel(secondary_root, package)
     _write_wheel_project_indexes(primary_root, primary_packages)
     _write_wheel_project_indexes(secondary_root, secondary_packages)
-    _add_source_only_package(primary_root)
+    _add_source_only_package(primary_root, build_sentinel)
 
     _write_root_index(primary_root, (*primary_packages,))
     _write_root_index(secondary_root, secondary_packages)
@@ -127,7 +127,7 @@ def _add_wheel(index_root: Path, package: WheelPackage) -> None:
             archive.writestr(info, content.encode())
 
 
-def _add_source_only_package(index_root: Path) -> None:
+def _add_source_only_package(index_root: Path, build_sentinel: Path) -> None:
     """Add a valid dynamic-metadata sdist with a sentinel build backend."""
     name = "peeq-fixture-source-only"
     version = "1.0.0"
@@ -136,16 +136,13 @@ def _add_source_only_package(index_root: Path) -> None:
     archive_path.parent.mkdir(parents=True, exist_ok=True)
 
     pyproject = '[build-system]\nrequires = []\nbuild-backend = "sentinel_backend"\nbackend-path = ["."]\n'
-    backend = '''"""Controlled test backend that records every hook execution."""
+    backend = f'''"""Controlled test backend that records every hook execution."""
 
 from pathlib import Path
-import os
 
 
 def _write_sentinel():
-    sentinel = os.environ.get("PEEQ_TEST_BUILD_SENTINEL")
-    if sentinel:
-        Path(sentinel).write_text("executed", encoding="utf-8")
+    Path({str(build_sentinel)!r}).write_text("executed", encoding="utf-8")
 
 
 def get_requires_for_build_wheel(config_settings=None):

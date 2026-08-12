@@ -25,6 +25,12 @@ Packages available only as source distributions also fail when resolving them wo
 
 Quote each requirement in your shell to prevent specifier characters (`>`, `<`, `!`) from being interpreted.
 
+### Resolver isolation
+
+peeq resolves against the exact Simple API endpoint selected by `--index-url`. It disables uv configuration-file discovery and does not inherit `UV_*`, `PIP_*`, active-virtual-environment, or Conda settings that could silently change the package universe, build policy, Python selection, TLS verification, or cache behavior.
+
+Standard proxy variables (`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, and `NO_PROXY`) and certificate variables (`SSL_CERT_FILE`, `SSL_CERT_DIR`, and `SSL_CLIENT_CERT`) remain available for corporate and private-registry networking. uv uses an isolated temporary cache and credential store for each peeq resolution.
+
 ## Options
 
 | Option | Type | Default | Description |
