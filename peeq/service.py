@@ -684,8 +684,7 @@ class PackageService:
         Parameters
         ----------
         requirements:
-            PEP 508 (https://peps.python.org/pep-0508/) requirement strings
-            (e.g., `["flask>=2.0", "requests"]`).
+            Registry-only PEP 508 (https://peps.python.org/pep-0508/) requirement strings (e.g., `["flask>=2.0", "requests"]`).
         target_env:
             Target platform for marker evaluation.
         include_prereleases:
@@ -806,7 +805,7 @@ class PackageService:
 
         Args:
             target: Bare package name to trace (no version specifier).
-            requirements: PEP 508 requirement strings.
+            requirements: Registry-only PEP 508 requirement strings.
             pre: Include pre-release versions in resolution.
             python_version: Target Python version (e.g., `"3.12"`).
             platform: Target platform (e.g., `"linux"`).

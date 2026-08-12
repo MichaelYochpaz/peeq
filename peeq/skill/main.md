@@ -170,7 +170,7 @@ peeq vulns django --version 4.2.0 --format agent
 
 Requires [uv](https://docs.astral.sh/uv/) at runtime. If peeq was installed with `uv tool install`, or ran using `uvx`, uv is already available.
 
-Pass requirements as requirement strings (e.g., `"flask>=3.0"`). Multiple requirements are resolved together into a single compatible environment. When `--python` and `--platform` are omitted, resolution targets the current host.
+Pass registry requirements (e.g., `"flask>=3.0"`). Package names, extras, version specifiers, and environment markers are supported. Direct URLs, VCS references, local paths, editables, wheels, source archives, and requirements-file directives are rejected so resolution never executes package build code. A registry package also fails safely when only source distributions are available and metadata would require a build. Multiple requirements are resolved together into a single compatible environment. When `--python` and `--platform` are omitted, resolution targets the current host.
 
 `peeq resolve <requirements...>` — Resolve a full dependency tree.
 
@@ -193,7 +193,7 @@ peeq conflicts "flask>=3.0" "werkzeug<2.0" --format agent
 - `--python` — Target Python version.
 - `--platform` — Target platform.
 
-`peeq why <requirements...> --dependency <target>` — Trace why a package appears in the dependency tree. Positional arguments are PEP 508 requirement strings; `--dependency` (`-d`) names the package to trace.
+`peeq why <requirements...> --dependency <target>` — Trace why a package appears in the dependency tree. Positional arguments are registry requirement strings; `--dependency` (`-d`) names the package to trace.
 
 ```sh
 peeq why "requests>=2.31" --dependency urllib3 --format agent

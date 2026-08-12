@@ -20,8 +20,11 @@ from __future__ import annotations
 
 import ipaddress
 import re
+import unicodedata
 from urllib.parse import urlsplit, urlunsplit
 from xml.sax.saxutils import escape as _sax_escape
+
+from packaging.requirements import InvalidRequirement, Requirement
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -445,45 +448,72 @@ def validate_ip_not_internal(ip_str: str) -> None:
 
 
 class UnsafeRequirementError(ValueError):
-    """A requirement string contains characters that could be interpreted
-    as pip/uv directives when written to a requirements file.
+    """A requirement is outside peeq's safe registry-only subset.
 
-    This prevents injection attacks where a string like
-    `evil-pkg\\n-r /etc/passwd` is written verbatim to a
-    `requirements.in` file and interpreted as a `-r` (requirements
-    file include) directive by the solver subprocess.
+    This prevents requirements-file injection and source-bearing inputs
+    from reaching the resolver subprocess. Source-bearing requirements
+    cannot be represented safely without allowing package build code to
+    execute.
     """
 
 
+_ARCHIVE_REQUIREMENT_SUFFIXES = (
+    ".tar",
+    ".tar.bz2",
+    ".tar.gz",
+    ".tar.xz",
+    ".tbz",
+    ".tbz2",
+    ".tgz",
+    ".txz",
+    ".whl",
+    ".zip",
+)
+
+
 def validate_requirement_string(requirement: str) -> None:
-    """Validate a requirement string for safe writing to a requirements file.
+    """Validate a requirement against peeq's safe registry-only subset.
 
     Requirement strings from CLI arguments are written to temporary
-    `requirements.in` files for `uv pip compile`.  While this is
-    user-controlled CLI input (not a trust boundary crossing), strings
-    with embedded newlines or leading dashes could be interpreted as
-    pip-style directives (`-r`, `-c`, `-e`, `-f`, `-i`,
-    `--index-url`, etc.).
-
-    Note that `packaging.Requirement` alone is insufficient for this
-    check — it parses the prefix successfully from
-    `evil-pkg\\n-r /etc/passwd` and silently ignores trailing content.
+    `requirements.in` files for `uv pip compile`. The supported subset
+    accepts registry package names, extras, version specifiers, and
+    environment markers. It rejects requirements-file directives and all
+    source-bearing forms, including direct URLs, VCS references, local
+    paths, editables, wheels, and source archives.
 
     Args:
         requirement: Raw requirement string from CLI input.
 
     Raises:
-        UnsafeRequirementError: If the string contains newlines, null
-            bytes, or starts with a dash (option flag).
+        UnsafeRequirementError: If the value is not a complete supported
+            registry requirement.
     """
-    if "\n" in requirement or "\r" in requirement:
-        msg = f"Requirement string contains newline: {requirement!r}"
+    if not requirement or requirement.isspace():
+        msg = "Requirement must not be empty"
         raise UnsafeRequirementError(msg)
 
-    if "\x00" in requirement:
-        msg = f"Requirement string contains null byte: {requirement!r}"
+    if requirement != requirement.strip():
+        msg = "Requirement must not have leading or trailing whitespace"
+        raise UnsafeRequirementError(msg)
+
+    if any(unicodedata.category(char) in {"Cc", "Cf"} for char in requirement):
+        msg = "Requirement must not contain control characters"
         raise UnsafeRequirementError(msg)
 
     if requirement.startswith("-"):
-        msg = f"Requirement string starts with dash (option flag): {requirement!r}"
+        msg = "Requirements-file directives and editable requirements are unsupported"
+        raise UnsafeRequirementError(msg)
+
+    try:
+        parsed = Requirement(requirement)
+    except InvalidRequirement as exc:
+        msg = "Requirement must be a valid registry package requirement"
+        raise UnsafeRequirementError(msg) from exc
+
+    if parsed.url is not None:
+        msg = "Direct URL, VCS, local path, and archive requirements are unsupported"
+        raise UnsafeRequirementError(msg)
+
+    if parsed.name.casefold().endswith(_ARCHIVE_REQUIREMENT_SUFFIXES):
+        msg = "Wheel and source archive requirements are unsupported"
         raise UnsafeRequirementError(msg)

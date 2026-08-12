@@ -1046,7 +1046,7 @@ async def resolve(
     requirements: Annotated[
         list[str],
         Parameter(
-            help=('PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'),
+            help=('Registry requirements (e.g., "requests>=2.31.0", "flask==3.0.0").'),
         ),
     ],
     *,
@@ -1075,7 +1075,8 @@ async def resolve(
 ) -> None:
     """Resolve full dependency tree for one or more requirements.
 
-    Arguments are PEP 508 requirement strings — not bare package names.
+    Arguments are registry package requirements. Source-bearing forms such
+    as direct URLs, VCS references, local paths, and archives are unsupported.
 
     Pin versions with specifiers: "requests==2.31.0", "flask>=3.0".
     """
@@ -1110,7 +1111,7 @@ async def conflicts(
     requirements: Annotated[
         list[str],
         Parameter(
-            help=('PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'),
+            help=('Registry requirements (e.g., "requests>=2.31.0", "flask==3.0.0").'),
         ),
     ],
     *,
@@ -1142,7 +1143,8 @@ async def conflicts(
     pre-release constraints are evaluated correctly.  Use `--no-pre`
     to restrict resolution to stable versions only.
 
-    Arguments are PEP 508 requirement strings — not bare package names.
+    Arguments are registry package requirements. Source-bearing forms such
+    as direct URLs, VCS references, local paths, and archives are unsupported.
 
     Pin versions with specifiers: "requests==2.31.0", "flask>=3.0".
 
@@ -1180,7 +1182,7 @@ async def why(
     requirements: Annotated[
         list[str],
         Parameter(
-            help=('PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'),
+            help=('Registry requirements (e.g., "requests>=2.31.0", "flask==3.0.0").'),
         ),
     ],
     *,

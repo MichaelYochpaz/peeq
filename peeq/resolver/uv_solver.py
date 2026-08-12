@@ -34,7 +34,11 @@ from peeq.resolver.models import (
     SolverResult,
 )
 from peeq.resolver.uv_error_parser import _parse_uv_error
-from peeq.sanitize import redact_url_credentials, validate_requirement_string
+from peeq.sanitize import (
+    UnsafeRequirementError,
+    redact_url_credentials,
+    validate_requirement_string,
+)
 
 if TYPE_CHECKING:
     from peeq.resolver.models import TargetEnvironment
@@ -131,6 +135,15 @@ class UvSolver(DependencyResolver):
         Writes requirements to a temporary file, invokes `uv`, and
         parses the output.
         """
+        if not requirements:
+            msg = "At least one requirement is required"
+            raise UnsafeRequirementError(msg)
+
+        # Validate the complete supported requirement subset before locating
+        # or executing uv and before creating a temporary requirements file.
+        for requirement in requirements:
+            validate_requirement_string(requirement)
+
         uv_bin = _find_uv()
         if uv_bin is None:
             raise UvNotFoundError
@@ -138,15 +151,6 @@ class UvSolver(DependencyResolver):
         _check_uv_version(uv_bin)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            # Validate requirement strings before writing to the temp
-            # file.  This prevents injection of pip-style directives
-            # (e.g., `-r /etc/passwd`) via strings that contain
-            # newlines or start with dashes.  packaging.Requirement
-            # alone is insufficient — it parses the prefix successfully
-            # from `evil-pkg\n-r /etc/passwd` and ignores the rest.
-            for req in requirements:
-                validate_requirement_string(req)
-
             req_file = Path(tmp_dir) / "requirements.in"
             req_file.write_text("\n".join(requirements) + "\n")
 
@@ -204,6 +208,8 @@ class UvSolver(DependencyResolver):
             str(req_file),
             "--no-header",
             "--no-config",
+            "--no-build",
+            "--no-python-downloads",
             "--annotation-style",
             "split",
             "--color",

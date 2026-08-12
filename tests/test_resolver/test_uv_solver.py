@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,7 +14,7 @@ from packaging.specifiers import SpecifierSet
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib  # ty: ignore[unresolved-import]
+    import tomli as tomllib
 
 from peeq.resolver.base import ResolutionImpossible, UvNotFoundError
 from peeq.resolver.models import TargetEnvironment
@@ -25,6 +26,10 @@ from peeq.resolver.uv_solver import (
     _find_uv,
     _to_uv_platform,
 )
+from peeq.sanitize import UnsafeRequirementError
+
+if TYPE_CHECKING:
+    from tests.test_resolver._uv_test_index import UvTestIndex
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -34,10 +39,15 @@ from peeq.resolver.uv_solver import (
 @pytest.fixture
 def mock_provider() -> PackageProvider:
     """Create a minimal mock PackageProvider for UvSolver."""
+    return _make_mock_provider("https://pypi.org")
+
+
+def _make_mock_provider(base_url: str) -> PackageProvider:
+    """Create a minimal mock provider for the requested package index."""
     mock_cache = MagicMock()
     mock_fetcher = AsyncMock()
     mock_backend = AsyncMock()
-    mock_backend.base_url = "https://pypi.org"
+    mock_backend.base_url = base_url
     return PackageProvider(
         cache=mock_cache,
         metadata_fetcher=mock_fetcher,
@@ -317,6 +327,8 @@ class TestBuildCommand:
         assert "compile" in cmd
         assert "--no-header" in cmd
         assert "--no-config" in cmd
+        assert "--no-build" in cmd
+        assert "--no-python-downloads" in cmd
         assert "--annotation-style" in cmd
         assert cmd[cmd.index("--annotation-style") + 1] == "split"
         assert "--color" in cmd
@@ -413,6 +425,38 @@ class TestBuildCommand:
 
 class TestResolve:
     """Tests for UvSolver.resolve()."""
+
+    @pytest.mark.parametrize(
+        "requirements",
+        [
+            [],
+            ["package @ https://example.com/package.tar.gz"],
+            ["  -r /etc/passwd"],
+        ],
+        ids=["empty", "direct-reference", "indented-directive"],
+    )
+    async def test_rejects_unsupported_input_before_side_effects(
+        self,
+        mock_provider: PackageProvider,
+        requirements: list[str],
+    ) -> None:
+        """Reject unsafe input before uv lookup, temp files, or subprocesses."""
+        solver = UvSolver(provider=mock_provider)
+
+        with (
+            patch("peeq.resolver.uv_solver._find_uv") as mock_find_uv,
+            patch("peeq.resolver.uv_solver.tempfile.TemporaryDirectory") as mock_tmp,
+            patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec,
+            pytest.raises(UnsafeRequirementError),
+        ):
+            await solver.resolve(
+                requirements,
+                TargetEnvironment(python_version="3.12"),
+            )
+
+        mock_find_uv.assert_not_called()
+        mock_tmp.assert_not_called()
+        mock_exec.assert_not_called()
 
     async def test_successful_resolution(
         self,
@@ -557,6 +601,160 @@ class TestResolve:
             pytest.raises(UvNotFoundError, match="uv is required"),
         ):
             await solver.resolve(["flask"], TargetEnvironment(python_version="3.12"))
+
+
+# ---------------------------------------------------------------------------
+# Real uv safety contract
+# ---------------------------------------------------------------------------
+
+
+class TestRealUvSafetyContract:
+    """Network-free contract tests against an actual uv subprocess."""
+
+    async def test_resolves_controlled_wheels_without_building(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        real_uv_bin: str,
+        uv_test_index: UvTestIndex,
+    ) -> None:
+        """Resolve the exact wheel graph, including extras and a marker."""
+        _configure_real_uv(
+            monkeypatch,
+            uv_bin=real_uv_bin,
+            cache_dir=tmp_path / "uv-cache",
+            sentinel=uv_test_index.build_sentinel,
+        )
+        solver = UvSolver(provider=_make_mock_provider(uv_test_index.primary_url))
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+
+        result = await solver.resolve(
+            ["peeq-fixture-root[feature]==1.0.0"],
+            TargetEnvironment(python_version=python_version),
+        )
+
+        resolved = {
+            dependency.name: (str(dependency.version), dependency.dependencies) for dependency in result.resolved
+        }
+        assert resolved == {
+            "peeq-fixture-child": ("1.0.0", []),
+            "peeq-fixture-extra": ("1.0.0", []),
+            "peeq-fixture-marker": ("1.0.0", []),
+            "peeq-fixture-root": (
+                "1.0.0",
+                [
+                    "peeq-fixture-child",
+                    "peeq-fixture-extra",
+                    "peeq-fixture-marker",
+                ],
+            ),
+        }
+        assert not uv_test_index.build_sentinel.exists()
+
+    async def test_reports_controlled_conflict(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        real_uv_bin: str,
+        uv_test_index: UvTestIndex,
+    ) -> None:
+        """Exercise a deterministic resolver conflict without public network."""
+        _configure_real_uv(
+            monkeypatch,
+            uv_bin=real_uv_bin,
+            cache_dir=tmp_path / "uv-cache",
+            sentinel=uv_test_index.build_sentinel,
+        )
+        solver = UvSolver(provider=_make_mock_provider(uv_test_index.primary_url))
+
+        with pytest.raises(ResolutionImpossible):
+            await solver.resolve(
+                [
+                    "peeq-fixture-conflict-left==1.0.0",
+                    "peeq-fixture-conflict-right==1.0.0",
+                ],
+                TargetEnvironment(python_version=f"{sys.version_info.major}.{sys.version_info.minor}"),
+            )
+
+        assert not uv_test_index.build_sentinel.exists()
+
+    async def test_source_only_package_never_executes_backend(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        real_uv_bin: str,
+        uv_test_index: UvTestIndex,
+    ) -> None:
+        """Fail safely when package metadata would require backend execution."""
+        _configure_real_uv(
+            monkeypatch,
+            uv_bin=real_uv_bin,
+            cache_dir=tmp_path / "uv-cache",
+            sentinel=uv_test_index.build_sentinel,
+        )
+        solver = UvSolver(provider=_make_mock_provider(uv_test_index.primary_url))
+
+        with pytest.raises(ResolutionImpossible):
+            await solver.resolve(
+                ["peeq-fixture-source-only==1.0.0"],
+                TargetEnvironment(python_version=f"{sys.version_info.major}.{sys.version_info.minor}"),
+            )
+
+        assert not uv_test_index.build_sentinel.exists()
+
+    async def test_source_fixture_detects_missing_no_build_guard(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        real_uv_bin: str,
+        uv_test_index: UvTestIndex,
+    ) -> None:
+        """Prove the controlled backend sentinel detects an unsafe command."""
+        _configure_real_uv(
+            monkeypatch,
+            uv_bin=real_uv_bin,
+            cache_dir=tmp_path / "unsafe-control-cache",
+            sentinel=uv_test_index.build_sentinel,
+        )
+        monkeypatch.setenv("UV_INDEX_URL", uv_test_index.primary_url)
+        requirements_file = tmp_path / "unsafe-control.in"
+        requirements_file.write_text(
+            "peeq-fixture-source-only==1.0.0\n",
+            encoding="utf-8",
+        )
+
+        proc = await asyncio.create_subprocess_exec(
+            real_uv_bin,
+            "pip",
+            "compile",
+            str(requirements_file),
+            "--no-header",
+            "--no-config",
+            "--no-python-downloads",
+            "--color",
+            "never",
+            "--quiet",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+
+        assert proc.returncode == 0, stderr.decode("utf-8", errors="replace")
+        assert uv_test_index.build_sentinel.read_text(encoding="utf-8") == "executed"
+
+
+def _configure_real_uv(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    uv_bin: str,
+    cache_dir: Path,
+    sentinel: Path,
+) -> None:
+    """Select a real uv executable and isolate its test cache and sentinel."""
+    monkeypatch.setattr("peeq.resolver.uv_solver._uv_version_checked", False)
+    monkeypatch.setenv("PEEQ_UV_BIN", uv_bin)
+    monkeypatch.setenv("UV_CACHE_DIR", str(cache_dir))
+    monkeypatch.setenv("PEEQ_TEST_BUILD_SENTINEL", str(sentinel))
 
 
 # ---------------------------------------------------------------------------

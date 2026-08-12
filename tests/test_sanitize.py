@@ -435,34 +435,97 @@ class TestValidateIpNotInternal:
 
 
 class TestValidateRequirementString:
-    """Tests for requirement string injection prevention."""
+    """Tests for the safe registry-requirement boundary."""
 
-    def test_normal_requirement_passes(self) -> None:
-        validate_requirement_string("flask>=2.0")
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            "flask",
+            "flask>=2.0,<4",
+            "requests[security]>=2.28",
+            'importlib-metadata>=6; python_version < "3.10"',
+        ],
+    )
+    def test_registry_requirement_passes(self, requirement: str) -> None:
+        validate_requirement_string(requirement)
 
-    def test_requirement_with_extras_passes(self) -> None:
-        validate_requirement_string("requests[security]>=2.28")
+    @pytest.mark.parametrize("requirement", ["", " ", "\t"])
+    def test_rejects_empty_requirement(self, requirement: str) -> None:
+        with pytest.raises(UnsafeRequirementError, match="must not be empty"):
+            validate_requirement_string(requirement)
 
-    def test_rejects_embedded_newline(self) -> None:
-        with pytest.raises(UnsafeRequirementError, match="newline"):
-            validate_requirement_string("evil-pkg\n-r /etc/passwd")
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            " flask",
+            "flask ",
+            "\u2003flask",
+            "flask\u2003",
+            "  -r /etc/passwd",
+        ],
+    )
+    def test_rejects_boundary_whitespace(self, requirement: str) -> None:
+        with pytest.raises(UnsafeRequirementError, match="whitespace"):
+            validate_requirement_string(requirement)
 
-    def test_rejects_carriage_return(self) -> None:
-        with pytest.raises(UnsafeRequirementError, match="newline"):
-            validate_requirement_string("evil-pkg\r\n-r /etc/passwd")
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            "evil-pkg\n-r /etc/passwd",
+            "evil-pkg\r\n-r /etc/passwd",
+            "evil-pkg\x00",
+            "evil-pkg\t>=1",
+            "evil-pkg\u200b>=1",
+        ],
+    )
+    def test_rejects_control_characters(self, requirement: str) -> None:
+        with pytest.raises(UnsafeRequirementError, match="control characters"):
+            validate_requirement_string(requirement)
 
-    def test_rejects_null_byte(self) -> None:
-        with pytest.raises(UnsafeRequirementError, match="null byte"):
-            validate_requirement_string("evil-pkg\x00")
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            "-r /etc/passwd",
+            "-c constraints.txt",
+            "-e ./package",
+            "--index-url https://example.com/simple",
+        ],
+    )
+    def test_rejects_requirements_file_directives(self, requirement: str) -> None:
+        with pytest.raises(UnsafeRequirementError, match="directives"):
+            validate_requirement_string(requirement)
 
-    def test_rejects_dash_r_flag(self) -> None:
-        with pytest.raises(UnsafeRequirementError, match="dash"):
-            validate_requirement_string("-r /etc/passwd")
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            "./package",
+            "../package",
+            "/tmp/package",
+            "https://example.com/package.whl",
+            "git+https://example.com/package.git",
+            "not a valid requirement !!!",
+        ],
+    )
+    def test_rejects_non_registry_requirement(self, requirement: str) -> None:
+        with pytest.raises(UnsafeRequirementError, match="valid registry"):
+            validate_requirement_string(requirement)
 
-    def test_rejects_dash_c_flag(self) -> None:
-        with pytest.raises(UnsafeRequirementError, match="dash"):
-            validate_requirement_string("-c constraints.txt")
+    @pytest.mark.parametrize(
+        "requirement",
+        [
+            "package @ https://example.com/package.whl",
+            "package @ git+https://example.com/package.git",
+            "package @ file:///tmp/package",
+        ],
+    )
+    def test_rejects_named_direct_reference(self, requirement: str) -> None:
+        with pytest.raises(UnsafeRequirementError, match="Direct URL"):
+            validate_requirement_string(requirement)
 
-    def test_rejects_double_dash_flag(self) -> None:
-        with pytest.raises(UnsafeRequirementError, match="dash"):
-            validate_requirement_string("--index-url https://evil.com")
+    @pytest.mark.parametrize(
+        "requirement",
+        ["package-1.0.tar.gz", "package-1.0.zip", "package-1.0.whl"],
+    )
+    def test_rejects_bare_archive_reference(self, requirement: str) -> None:
+        with pytest.raises(UnsafeRequirementError, match="archive"):
+            validate_requirement_string(requirement)

@@ -17,10 +17,11 @@ peeq conflicts <requirements>... [options]
 
 | Argument | Description |
 |----------|-------------|
-| `requirements` | One or more PEP 508 requirement strings. **Required.** |
+| `requirements` | One or more registry package requirements. **Required.** |
 
-Arguments are [PEP 508](https://peps.python.org/pep-0508/) requirement strings — not bare package names.
+peeq supports registry package names, extras, version specifiers, and environment markers.
 Pin or constrain versions with specifiers (e.g., `"requests==2.31.0"`, `"flask>=3.0"`).
+Direct URLs, VCS references, local paths, editable requirements, wheels, source archives, and requirements-file directives are rejected.
 
 ## Options
 

@@ -15,11 +15,13 @@ peeq resolve <requirements>... [options]
 
 | Argument | Description |
 |----------|-------------|
-| `requirements` | One or more PEP 508 requirement strings. **Required.** |
+| `requirements` | One or more registry package requirements. **Required.** |
 
-Arguments are [PEP 508](https://peps.python.org/pep-0508/) requirement strings — not bare package names.
-You can pin or constrain versions with specifiers (e.g., `"requests==2.31.0"`, `"flask>=3.0"`).
-A bare name like `"requests"` is valid and resolves to the latest compatible version.
+peeq supports the registry-only subset of [PEP 508](https://peps.python.org/pep-0508/): package names, extras, version specifiers, and environment markers.
+You can pin or constrain versions with specifiers (e.g., `"requests==2.31.0"`, `"flask>=3.0"`), while a bare name like `"requests"` resolves to the latest compatible version.
+
+Direct URLs, VCS references, local paths, editable requirements, wheels, source archives, and requirements-file directives are rejected.
+Packages available only as source distributions also fail when resolving them would require executing a build backend.
 
 Quote each requirement in your shell to prevent specifier characters (`>`, `<`, `!`) from being interpreted.
 

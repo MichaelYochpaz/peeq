@@ -16,7 +16,10 @@ peeq why <requirements>... --dependency <package> [options]
 
 | Argument | Description |
 |----------|-------------|
-| `requirements` | One or more PEP 508 requirement strings that form the dependency tree to search. **Required.** |
+| `requirements` | One or more registry package requirements that form the dependency tree to search. **Required.** |
+
+Requirements may contain package names, extras, version specifiers, and environment markers.
+Direct URLs, VCS references, local paths, editable requirements, wheels, source archives, and requirements-file directives are rejected.
 
 ## Options
 

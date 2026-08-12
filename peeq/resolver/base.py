@@ -104,7 +104,7 @@ class DependencyResolver(ABC):
         Parameters
         ----------
         requirements:
-            PEP 508 requirement strings (e.g., `["flask>=2.0", "requests"]`).
+            Registry-only PEP 508 requirement strings (e.g., `["flask>=2.0", "requests"]`).
         target_env:
             Target platform for marker evaluation.
 
