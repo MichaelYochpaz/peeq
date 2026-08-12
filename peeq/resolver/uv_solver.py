@@ -151,9 +151,7 @@ class UvSolver(DependencyResolver):
             req_file.write_text("\n".join(requirements) + "\n")
 
             cmd = self._build_command(uv_bin, req_file, target_env)
-            logger.debug(
-                "Running uv: %s", " ".join(redact_url_credentials(arg) for arg in cmd)
-            )
+            logger.debug("Running uv: %s", " ".join(redact_url_credentials(arg) for arg in cmd))
 
             # UV_NO_WRAP disables prose line wrapping in uv's error
             # output (a public env var since uv v0.0.5, used by uv's
@@ -391,9 +389,7 @@ def _to_uv_platform(target_env: TargetEnvironment) -> str | None:
     Returns `None` when `sys_platform` itself is unknown.
     """
     if target_env.sys_platform and target_env.platform_machine:
-        specific = _PLATFORM_MAP.get(
-            (target_env.sys_platform, target_env.platform_machine)
-        )
+        specific = _PLATFORM_MAP.get((target_env.sys_platform, target_env.platform_machine))
         if specific is not None:
             return specific
 

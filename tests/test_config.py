@@ -98,9 +98,7 @@ class TestSettingsEnvVars:
         settings = Settings()
         assert settings.extraction.max_file_size_mb == 5
 
-    def test_multiple_overrides(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_multiple_overrides(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.setenv("PEEQ_CACHE_DIR", str(tmp_path))
         monkeypatch.setenv("PEEQ_CACHE_API_TTL_SECONDS", "600")
         monkeypatch.setenv("PEEQ_EXTRACTION_MAX_SIZE_MB", "250")
@@ -127,16 +125,12 @@ class TestSettingsEnvVars:
 
 
 class TestSettingsToml:
-    def test_toml_loading(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_toml_loading(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Settings loads values from a TOML config file."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
         config_file = config_dir / "config.toml"
-        config_file.write_text(
-            "[cache]\napi_ttl_seconds = 9999\n\n[extraction]\nmax_size_mb = 42\n"
-        )
+        config_file.write_text("[cache]\napi_ttl_seconds = 9999\n\n[extraction]\nmax_size_mb = 42\n")
 
         # Patch _default_config_path to point to our test file
         monkeypatch.setattr("peeq.config._default_config_path", lambda: config_file)
@@ -147,9 +141,7 @@ class TestSettingsToml:
         # Non-specified values keep defaults
         assert settings.extraction.max_files == 50_000
 
-    def test_env_overrides_toml(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Environment variables take priority over TOML values."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -163,9 +155,7 @@ class TestSettingsToml:
         # Env wins over TOML
         assert settings.extraction.max_size_mb == 999
 
-    def test_missing_toml_is_ok(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_missing_toml_is_ok(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """If the config file doesn't exist, settings still work."""
         nonexistent = tmp_path / "nope" / "config.toml"
         monkeypatch.setattr("peeq.config._default_config_path", lambda: nonexistent)

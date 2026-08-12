@@ -177,22 +177,15 @@ def _format_severity_rich(vuln: VulnerabilityInfo) -> str:
     return "-"
 
 
-def _apply_vuln_table_caption(
-    table: Table, vulnerabilities: list[VulnerabilityInfo]
-) -> None:
+def _apply_vuln_table_caption(table: Table, vulnerabilities: list[VulnerabilityInfo]) -> None:
     """Set the table caption to upgrade guidance when fixed versions exist."""
     recommendation = build_vulnerability_recommendation(vulnerabilities)
     if recommendation is None:
         return
 
-    lines = [
-        f"[bold]Suggested upgrade:[/bold] >= {rich_escape(recommendation.version)}"
-    ]
+    lines = [f"[bold]Suggested upgrade:[/bold] >= {rich_escape(recommendation.version)}"]
     if recommendation.unresolved_count:
-        lines.append(
-            "[warning]Note:[/warning] "
-            f"{format_unfixed_vulnerability_note(recommendation.unresolved_count)}"
-        )
+        lines.append(f"[warning]Note:[/warning] {format_unfixed_vulnerability_note(recommendation.unresolved_count)}")
     table.caption = "\n".join(lines)
     table.caption_justify = "left"
 
@@ -224,9 +217,7 @@ class RichRenderer(Renderer):
     """Terminal renderer using Rich panels, tables, and syntax highlighting."""
 
     def __init__(self, *, stream: TextIO | None = None) -> None:
-        self._console = Console(
-            file=stream or sys.stdout, highlight=False, theme=_THEME
-        )
+        self._console = Console(file=stream or sys.stdout, highlight=False, theme=_THEME)
 
     # -- Package queries ----------------------------------------------------
 
@@ -384,9 +375,7 @@ class RichRenderer(Renderer):
         table.add_column("Summary")
 
         for vuln in report.vulnerabilities:
-            cves = rich_escape(
-                ", ".join(a for a in vuln.aliases if a.startswith("CVE-")) or "-"
-            )
+            cves = rich_escape(", ".join(a for a in vuln.aliases if a.startswith("CVE-")) or "-")
             severity = _format_severity_rich(vuln)
             fixed = rich_escape(", ".join(vuln.fixed_versions) or "-")
             summary = rich_escape(vuln.summary or "-")
@@ -425,16 +414,11 @@ class RichRenderer(Renderer):
     ) -> list[str | Padding]:
         """Build dependency section renderables for pretty output."""
         tag_label = f" ({rich_escape(tag)})" if tag else ""
-        header = (
-            f"Dependencies for {rich_escape(name)} {rich_escape(version)}{tag_label}:"
-        )
+        header = f"Dependencies for {rich_escape(name)} {rich_escape(version)}{tag_label}:"
         parts: list[str | Padding] = [f"[bold]{header}[/bold]"]
 
         if metadata.dependencies is None:
-            parts.append(
-                "  [warning]Dependencies unknown "
-                "(Requires-Dist marked as Dynamic)[/warning]"
-            )
+            parts.append("  [warning]Dependencies unknown (Requires-Dist marked as Dynamic)[/warning]")
             if metadata.dynamic_fields:
                 fields = ", ".join(rich_escape(f) for f in metadata.dynamic_fields)
                 parts.append(f"  [dim]Dynamic fields: {fields}[/dim]")
@@ -448,11 +432,7 @@ class RichRenderer(Renderer):
         has_group = False
 
         if required:
-            parts.extend(
-                self._build_dependency_group(
-                    "Required", required, available_width=available_width
-                )
-            )
+            parts.extend(self._build_dependency_group("Required", required, available_width=available_width))
             has_group = True
 
         for extra_name, deps in sorted(optional.items()):
@@ -498,17 +478,10 @@ class RichRenderer(Renderer):
             renderables.append("[bold]Versions:[/bold]")
             cells = self._build_versions_cells(report.versions)
             # 6 = panel borders (2x border + 2x space) + left indent
-            grid = self._layout_text_grid(
-                cells, available_width=self._console.width - 6
-            )
+            grid = self._layout_text_grid(cells, available_width=self._console.width - 6)
             renderables.append(Padding(grid, (0, 0, 0, 2)))
-            if report.versions_total is not None and report.versions_total != len(
-                report.versions
-            ):
-                renderables.append(
-                    f"  [dim]Showing {len(report.versions)}"
-                    f" of {report.versions_total} versions[/dim]"
-                )
+            if report.versions_total is not None and report.versions_total != len(report.versions):
+                renderables.append(f"  [dim]Showing {len(report.versions)} of {report.versions_total} versions[/dim]")
 
         # -- Version details ------------------------------------------------
         version = report.target_version or str(info.latest_version)
@@ -521,9 +494,7 @@ class RichRenderer(Renderer):
 
         if info.requires_python is not None:
             python_spec = normalize_specifier_order(info.requires_python)
-            renderables.append(
-                f"[bold]Requires Python:[/bold] {rich_escape(python_spec)}"
-            )
+            renderables.append(f"[bold]Requires Python:[/bold] {rich_escape(python_spec)}")
 
         if report.target_version_yanked:
             msg = f"Version {rich_escape(version)} has been yanked"
@@ -549,13 +520,9 @@ class RichRenderer(Renderer):
         if report.errors:
             renderables.append("")
             for section, message in report.errors.items():
-                renderables.append(
-                    f"[failure]Error ({section}): {rich_escape(message)}[/failure]"
-                )
+                renderables.append(f"[failure]Error ({section}): {rich_escape(message)}[/failure]")
 
-        self._console.print(
-            Panel(Group(*renderables), title=rich_escape(info.name), expand=False)
-        )
+        self._console.print(Panel(Group(*renderables), title=rich_escape(info.name), expand=False))
 
     def render_versions(  # noqa: PLR0913
         self,
@@ -576,10 +543,7 @@ class RichRenderer(Renderer):
         kind = "yanked versions" if yanked else "versions"
 
         if not versions and offset > 0 and total > 0:
-            self._console.print(
-                f"[dim]No {kind} at offset {offset} for"
-                f" {safe_name} (total: {total})[/dim]"
-            )
+            self._console.print(f"[dim]No {kind} at offset {offset} for {safe_name} (total: {total})[/dim]")
             return
 
         # -- Header ----------------------------------------------------------
@@ -634,16 +598,9 @@ class RichRenderer(Renderer):
         if matching and original_total is not None:
             if truncated or offset > 0:
                 range_label = _rich_range_label(showing, total, offset)
-                core = (
-                    f"{safe_name} {kind} ({range_label}"
-                    f" matching {rich_escape(matching)};"
-                    f" {original_total} total"
-                )
+                core = f"{safe_name} {kind} ({range_label} matching {rich_escape(matching)}; {original_total} total"
             else:
-                core = (
-                    f"{safe_name} {kind} ({total} of {original_total}"
-                    f" matching {rich_escape(matching)}"
-                )
+                core = f"{safe_name} {kind} ({total} of {original_total} matching {rich_escape(matching)}"
         else:
             range_label = _rich_range_label(showing, total, offset)
             core = f"{safe_name} {kind} ({range_label}"
@@ -693,30 +650,17 @@ class RichRenderer(Renderer):
             for c in diff.changed:
                 group = f" \\[{rich_escape(c.extras_group)}]" if c.extras_group else ""
                 line = (
-                    f"  {rich_escape(c.name)}{group} "
-                    f"{rich_escape(c.old_specifier)} -> {rich_escape(c.new_specifier)}"
+                    f"  {rich_escape(c.name)}{group} {rich_escape(c.old_specifier)} -> {rich_escape(c.new_specifier)}"
                 )
                 self._console.print(f"[warning]{line}[/warning]")
                 if c.old_markers != c.new_markers:
                     old_m = rich_escape(c.old_markers) if c.old_markers else "(none)"
                     new_m = rich_escape(c.new_markers) if c.new_markers else "(none)"
-                    self._console.print(
-                        f"[warning]    markers: {old_m} -> {new_m}[/warning]"
-                    )
+                    self._console.print(f"[warning]    markers: {old_m} -> {new_m}[/warning]")
                 if c.old_extras != c.new_extras:
-                    old_e = (
-                        f"\\[{', '.join(rich_escape(e) for e in c.old_extras)}]"
-                        if c.old_extras
-                        else "(none)"
-                    )
-                    new_e = (
-                        f"\\[{', '.join(rich_escape(e) for e in c.new_extras)}]"
-                        if c.new_extras
-                        else "(none)"
-                    )
-                    self._console.print(
-                        f"[warning]    extras: {old_e} -> {new_e}[/warning]"
-                    )
+                    old_e = f"\\[{', '.join(rich_escape(e) for e in c.old_extras)}]" if c.old_extras else "(none)"
+                    new_e = f"\\[{', '.join(rich_escape(e) for e in c.new_extras)}]" if c.new_extras else "(none)"
+                    self._console.print(f"[warning]    extras: {old_e} -> {new_e}[/warning]")
         else:
             self._console.print("  [dim](none)[/dim]")
 
@@ -725,9 +669,7 @@ class RichRenderer(Renderer):
         if diff.added:
             for dep in diff.added:
                 spec = f" {rich_escape(dep.specifier)}" if dep.specifier else ""
-                self._console.print(
-                    f"  [success]{rich_escape(dep.name)}{spec}[/success]"
-                )
+                self._console.print(f"  [success]{rich_escape(dep.name)}{spec}[/success]")
         else:
             self._console.print("  [dim](none)[/dim]")
 
@@ -736,9 +678,7 @@ class RichRenderer(Renderer):
         if diff.removed:
             for dep in diff.removed:
                 spec = f" {rich_escape(dep.specifier)}" if dep.specifier else ""
-                self._console.print(
-                    f"  [failure]{rich_escape(dep.name)}{spec}[/failure]"
-                )
+                self._console.print(f"  [failure]{rich_escape(dep.name)}{spec}[/failure]")
         else:
             self._console.print("  [dim](none)[/dim]")
 
@@ -792,9 +732,7 @@ class RichRenderer(Renderer):
             row = [rich_escape(f.filename), f.dist_type.value, size, python]
             if any_yanked:
                 if f.yanked:
-                    row.append(
-                        rich_escape(f.yanked_reason) if f.yanked_reason else "Yes"
-                    )
+                    row.append(rich_escape(f.yanked_reason) if f.yanked_reason else "Yes")
                 else:
                     row.append("")
             table.add_row(*row)
@@ -829,13 +767,10 @@ class RichRenderer(Renderer):
             elif glob_patterns:
                 patterns = ", ".join(rich_escape(p) for p in glob_patterns)
                 self._console.print(
-                    f"[dim]No files matched glob {patterns}"
-                    f" for {safe_name} {safe_version}{prefix_label}[/dim]"
+                    f"[dim]No files matched glob {patterns} for {safe_name} {safe_version}{prefix_label}[/dim]"
                 )
             else:
-                self._console.print(
-                    f"[dim]Archive is empty for {safe_name} {safe_version}{prefix_label}[/dim]"
-                )
+                self._console.print(f"[dim]Archive is empty for {safe_name} {safe_version}{prefix_label}[/dim]")
             return
 
         # Build title with optional truncation and prefix info
@@ -877,9 +812,7 @@ class RichRenderer(Renderer):
         """Render file content with syntax highlighting."""
         text = try_decode(content)
         if text is None:
-            self._console.print(
-                f"[warning]Binary file ({format_size(len(content))})[/warning]"
-            )
+            self._console.print(f"[warning]Binary file ({format_size(len(content))})[/warning]")
             return
 
         title = f"{rich_escape(name)} {rich_escape(version)} \u2014 {rich_escape(path)}"
@@ -914,13 +847,9 @@ class RichRenderer(Renderer):
             f"[bold]Cache size:[/bold]    {size_str}",
         ]
         if stats.oldest_entry:
-            lines.append(
-                f"[bold]Oldest entry:[/bold]  {stats.oldest_entry:%Y-%m-%d %H:%M}"
-            )
+            lines.append(f"[bold]Oldest entry:[/bold]  {stats.oldest_entry:%Y-%m-%d %H:%M}")
         if stats.newest_entry:
-            lines.append(
-                f"[bold]Newest entry:[/bold]  {stats.newest_entry:%Y-%m-%d %H:%M}"
-            )
+            lines.append(f"[bold]Newest entry:[/bold]  {stats.newest_entry:%Y-%m-%d %H:%M}")
         self._console.print(Panel("\n".join(lines), title="Cache Info", expand=False))
 
     def render_cache_clear(self, count: int, total_size_bytes: int) -> None:
@@ -974,9 +903,7 @@ class RichRenderer(Renderer):
         count = len(result.resolved)
         self._console.print(f"[bold]Resolved {count} packages:[/bold]")
         for pkg in sorted(result.resolved, key=lambda p: p.name):
-            self._console.print(
-                f"  - {rich_escape(pkg.name)}==[version]{rich_escape(str(pkg.version))}[/version]"
-            )
+            self._console.print(f"  - {rich_escape(pkg.name)}==[version]{rich_escape(str(pkg.version))}[/version]")
         self._console.print(f"\n[dim]Solver: {result.solver_id}[/dim]")
 
     def render_conflicts(
@@ -990,14 +917,10 @@ class RichRenderer(Renderer):
             self._console.print(f"[error]{rich_escape(header)}[/error]\n")
 
         for conflict in conflicts:
-            self._console.print(
-                f"[error]CONFLICT:[/error] [bold]{rich_escape(conflict.package)}[/bold]\n"
-            )
+            self._console.print(f"[error]CONFLICT:[/error] [bold]{rich_escape(conflict.package)}[/bold]\n")
             for req in conflict.requirements:
                 spec = f"{req.package}{req.version}" if req.version else req.package
-                self._console.print(
-                    f"  {rich_escape(spec)} requires: {rich_escape(req.dependency)}"
-                )
+                self._console.print(f"  {rich_escape(spec)} requires: {rich_escape(req.dependency)}")
                 if req.chain:
                     chain_str = " \u2192 ".join(req.chain)
                     self._console.print(f"    [dim]via: {rich_escape(chain_str)}[/dim]")
@@ -1005,21 +928,15 @@ class RichRenderer(Renderer):
 
             if conflict.additional_requirements:
                 self._console.print(
-                    f"  [dim]Also constrains {rich_escape(conflict.package)}"
-                    " (not part of the conflict):[/dim]"
+                    f"  [dim]Also constrains {rich_escape(conflict.package)} (not part of the conflict):[/dim]"
                 )
                 for req in conflict.additional_requirements:
                     spec = f"{req.package}{req.version}" if req.version else req.package
-                    self._console.print(
-                        f"    [dim]{rich_escape(spec)}:"
-                        f" {rich_escape(req.dependency)}[/dim]"
-                    )
+                    self._console.print(f"    [dim]{rich_escape(spec)}: {rich_escape(req.dependency)}[/dim]")
                 self._console.print()
 
             if conflict.message:
-                self._console.print(
-                    f"[warning]{rich_escape(conflict.message)}[/warning]"
-                )
+                self._console.print(f"[warning]{rich_escape(conflict.message)}[/warning]")
 
             if conflict.hints:
                 self._console.print()
@@ -1066,9 +983,7 @@ class RichRenderer(Renderer):
         target_label = f"[bold]{rich_escape(result.target)}=={rich_escape(result.target_version)}[/bold]"
 
         if result.is_direct:
-            self._console.print(
-                f"{target_label} is a direct requirement (not pulled in transitively)."
-            )
+            self._console.print(f"{target_label} is a direct requirement (not pulled in transitively).")
             return
 
         source = f"[bold]{rich_escape(result.paths[0].hops[0].package)}[/bold]"
@@ -1097,25 +1012,17 @@ class RichRenderer(Renderer):
         self._console.print("[error]Resolution failed[/error]\n")
 
         for conflict in conflicts:
-            self._console.print(
-                f"[error]CONFLICT:[/error] [bold]{rich_escape(conflict.package)}[/bold]"
-            )
+            self._console.print(f"[error]CONFLICT:[/error] [bold]{rich_escape(conflict.package)}[/bold]")
             for req in conflict.requirements:
                 spec = f"{req.package}{req.version}" if req.version else req.package
-                self._console.print(
-                    f"  {rich_escape(spec)} requires: {rich_escape(req.dependency)}"
-                )
+                self._console.print(f"  {rich_escape(spec)} requires: {rich_escape(req.dependency)}")
                 if req.chain:
                     chain_str = " \u2192 ".join(req.chain)
                     self._console.print(f"    [dim]via: {rich_escape(chain_str)}[/dim]")
             self._console.print()
 
-        self._console.print(
-            "[dim]Path tracing is not available when resolution fails.[/dim]"
-        )
-        self._console.print(
-            f"[dim]Use '{APP_NAME} conflicts' for conflict details.[/dim]"
-        )
+        self._console.print("[dim]Path tracing is not available when resolution fails.[/dim]")
+        self._console.print(f"[dim]Use '{APP_NAME} conflicts' for conflict details.[/dim]")
 
     # -- Vulnerability checking -----------------------------------------------
 
@@ -1145,9 +1052,7 @@ class RichRenderer(Renderer):
         table.add_column("Summary")
 
         for vuln in report.vulnerabilities:
-            cves = rich_escape(
-                ", ".join(a for a in vuln.aliases if a.startswith("CVE-")) or "-"
-            )
+            cves = rich_escape(", ".join(a for a in vuln.aliases if a.startswith("CVE-")) or "-")
             severity = _format_severity_rich(vuln)
             fixed = rich_escape(", ".join(vuln.fixed_versions) or "-")
             summary = rich_escape(vuln.summary or "-")
@@ -1164,6 +1069,4 @@ class RichRenderer(Renderer):
 
     def render_not_found(self, name: str) -> None:
         """Render a 'package not found' message."""
-        self._console.print(
-            f"[warning]Package '{rich_escape(name)}' not found[/warning]"
-        )
+        self._console.print(f"[warning]Package '{rich_escape(name)}' not found[/warning]")

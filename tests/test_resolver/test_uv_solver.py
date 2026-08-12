@@ -104,9 +104,7 @@ class TestCheckUvVersion:
         with patch("subprocess.run", return_value=mock_result):
             _check_uv_version("/usr/bin/uv")  # Should not raise
 
-    def test_parse_failure_skips_silently(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_parse_failure_skips_silently(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Skip version check without crashing when output is unparseable."""
         monkeypatch.setattr("peeq.resolver.uv_solver._uv_version_checked", False)
         with patch("subprocess.run", side_effect=OSError("spawn failed")):
@@ -124,12 +122,7 @@ class TestParseOutput:
     def test_single_parent_annotation(self, mock_provider: PackageProvider) -> None:
         """Single `# via <parent>` annotation populates forward edges."""
         solver = UvSolver(provider=mock_provider)
-        output = (
-            "click==8.1.7\n"
-            "    # via flask\n"
-            "flask==3.0.0\n"
-            "    # via -r /tmp/abc123/requirements.in\n"
-        )
+        output = "click==8.1.7\n    # via flask\nflask==3.0.0\n    # via -r /tmp/abc123/requirements.in\n"
         result = solver._parse_output(output)
         deps = {r.name: r.dependencies for r in result.resolved}
         # flask -> click (forward edge derived from "click via flask")
@@ -222,9 +215,7 @@ class TestParseOutput:
     def test_ignores_comments_and_flags(self, mock_provider: PackageProvider) -> None:
         """Top-level comments and flag lines are skipped."""
         solver = UvSolver(provider=mock_provider)
-        output = (
-            "# This is a comment\n--index-url https://pypi.org/simple\nflask==3.0.0\n"
-        )
+        output = "# This is a comment\n--index-url https://pypi.org/simple\nflask==3.0.0\n"
         result = solver._parse_output(output)
         assert len(result.resolved) == 1
         assert result.resolved[0].name == "flask"
@@ -312,9 +303,7 @@ class TestHandleError:
 class TestBuildCommand:
     """Tests for UvSolver._build_command()."""
 
-    def test_basic_command(
-        self, mock_provider: PackageProvider, tmp_path: Path
-    ) -> None:
+    def test_basic_command(self, mock_provider: PackageProvider, tmp_path: Path) -> None:
         solver = UvSolver(provider=mock_provider)
 
         req_file = tmp_path / "requirements.in"
@@ -356,9 +345,7 @@ class TestBuildCommand:
         assert "--index-url" not in cmd
         assert "https://private.registry.com" not in cmd
 
-    def test_python_version_flag(
-        self, mock_provider: PackageProvider, tmp_path: Path
-    ) -> None:
+    def test_python_version_flag(self, mock_provider: PackageProvider, tmp_path: Path) -> None:
         solver = UvSolver(provider=mock_provider)
 
         req_file = tmp_path / "requirements.in"
@@ -370,9 +357,7 @@ class TestBuildCommand:
         idx = cmd.index("--python-version")
         assert cmd[idx + 1] == "3.11"
 
-    def test_platform_flag(
-        self, mock_provider: PackageProvider, tmp_path: Path
-    ) -> None:
+    def test_platform_flag(self, mock_provider: PackageProvider, tmp_path: Path) -> None:
         solver = UvSolver(provider=mock_provider)
 
         req_file = tmp_path / "requirements.in"
@@ -407,9 +392,7 @@ class TestBuildCommand:
         )
         assert "--prerelease=allow" in cmd
 
-    def test_prerelease_default_flag(
-        self, mock_provider: PackageProvider, tmp_path: Path
-    ) -> None:
+    def test_prerelease_default_flag(self, mock_provider: PackageProvider, tmp_path: Path) -> None:
         """Include --prerelease=if-necessary-or-explicit by default."""
         solver = UvSolver(provider=mock_provider)
 
@@ -439,12 +422,7 @@ class TestResolve:
         """Return SolverResult when uv exits with return code 0."""
         monkeypatch.setattr("peeq.resolver.uv_solver._uv_version_checked", True)
         solver = UvSolver(provider=mock_provider)
-        stdout = (
-            b"click==8.1.7\n"
-            b"    # via flask\n"
-            b"flask==3.0.0\n"
-            b"    # via -r /tmp/requirements.in\n"
-        )
+        stdout = b"click==8.1.7\n    # via flask\nflask==3.0.0\n    # via -r /tmp/requirements.in\n"
 
         mock_proc = AsyncMock()
         mock_proc.returncode = 0
@@ -458,9 +436,7 @@ class TestResolve:
                 return_value=mock_proc,
             ),
         ):
-            result = await solver.resolve(
-                ["flask"], TargetEnvironment(python_version="3.12")
-            )
+            result = await solver.resolve(["flask"], TargetEnvironment(python_version="3.12"))
 
         assert result.solver_id == "uv"
         names = {r.name for r in result.resolved}
@@ -560,9 +536,7 @@ class TestResolve:
 
         # URL must be in the env dict.
         env = mock_exec.call_args.kwargs["env"]
-        assert env["UV_INDEX_URL"] == (
-            "https://user:token@private.registry.com/simple/"
-        )
+        assert env["UV_INDEX_URL"] == ("https://user:token@private.registry.com/simple/")
 
     async def test_binary_not_found(
         self,
@@ -620,12 +594,8 @@ class TestToUvPlatform:
             "windows-aarch64",
         ],
     )
-    def test_specific_triplet(
-        self, sys_platform: str, platform_machine: str, expected: str
-    ) -> None:
-        env = TargetEnvironment(
-            sys_platform=sys_platform, platform_machine=platform_machine
-        )
+    def test_specific_triplet(self, sys_platform: str, platform_machine: str, expected: str) -> None:
+        env = TargetEnvironment(sys_platform=sys_platform, platform_machine=platform_machine)
         assert _to_uv_platform(env) == expected
 
     # -- Generic fallback (sys_platform only) -------------------------------
@@ -645,9 +615,7 @@ class TestToUvPlatform:
             "unrecognized-machine-falls-back",
         ],
     )
-    def test_generic_fallback(
-        self, sys_platform: str, platform_machine: str | None, expected: str
-    ) -> None:
+    def test_generic_fallback(self, sys_platform: str, platform_machine: str | None, expected: str) -> None:
         env = TargetEnvironment(
             sys_platform=sys_platform,
             **({"platform_machine": platform_machine} if platform_machine else {}),
@@ -668,9 +636,7 @@ class TestToUvPlatform:
         ],
     )
     def test_returns_none(self, sys_platform: str | None, expected: None) -> None:
-        env = TargetEnvironment(
-            **({"sys_platform": sys_platform} if sys_platform else {})
-        )
+        env = TargetEnvironment(**({"sys_platform": sys_platform} if sys_platform else {}))
         assert _to_uv_platform(env) is expected
 
 
@@ -694,6 +660,5 @@ class TestMinUvVersionSync:
         spec = SpecifierSet(uv_deps[0].removeprefix("uv"))
 
         assert str(_MIN_UV_VERSION) in spec, (
-            f"_MIN_UV_VERSION ({_MIN_UV_VERSION}) is not satisfied by "
-            f"pyproject.toml uv floor ({uv_deps[0]})"
+            f"_MIN_UV_VERSION ({_MIN_UV_VERSION}) is not satisfied by pyproject.toml uv floor ({uv_deps[0]})"
         )

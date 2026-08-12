@@ -71,9 +71,7 @@ class TestFlagConflicts:
         ):
             await cat_cmd("testpkg", "README.md", full=True, max_bytes=1000)
 
-        renderer.render_error.assert_called_once_with(
-            "--full and --max-bytes cannot be used together"
-        )
+        renderer.render_error.assert_called_once_with("--full and --max-bytes cannot be used together")
 
     async def test_negative_max_bytes_rejected(self) -> None:
         """Negative `--max-bytes` renders an error and exits."""
@@ -85,9 +83,7 @@ class TestFlagConflicts:
         ):
             await cat_cmd("testpkg", "README.md", max_bytes=-1)
 
-        renderer.render_error.assert_called_once_with(
-            "--max-bytes must be non-negative"
-        )
+        renderer.render_error.assert_called_once_with("--max-bytes must be non-negative")
 
 
 # ---------------------------------------------------------------------------

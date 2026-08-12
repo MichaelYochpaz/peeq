@@ -216,10 +216,7 @@ class PyPIRepository(PackageRepository):
                 url,
                 headers={"Accept": _PEP691_ACCEPT},
             )
-            if (
-                response.is_client_error
-                and response.status_code == httpx.codes.NOT_FOUND
-            ):
+            if response.is_client_error and response.status_code == httpx.codes.NOT_FOUND:
                 self._simple_cache[normalized_name] = None
                 return None
             response.raise_for_status()
@@ -227,10 +224,7 @@ class PyPIRepository(PackageRepository):
             self._simple_cache[normalized_name] = data
             return data
         except httpx.HTTPStatusError as exc:
-            msg = (
-                f"PEP 691 request failed for {normalized_name}: "
-                f"{exc.response.status_code}"
-            )
+            msg = f"PEP 691 request failed for {normalized_name}: {exc.response.status_code}"
             raise BackendError(msg) from exc
         except httpx.HTTPError as exc:
             msg = f"HTTP error fetching {normalized_name}: {exc}"

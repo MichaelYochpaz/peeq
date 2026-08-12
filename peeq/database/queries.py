@@ -197,9 +197,7 @@ def get_distribution_metadata(
     metadata.source_filename = row["filename"]
 
     # Stage 4: dynamic_fields from column
-    metadata.dynamic_fields = (
-        json.loads(row["dynamic_fields"]) if row["dynamic_fields"] else None
-    )
+    metadata.dynamic_fields = json.loads(row["dynamic_fields"]) if row["dynamic_fields"] else None
 
     # Stage 5 & 6: dependencies from table
     dist_id: int = row["id"]
@@ -524,9 +522,9 @@ def get_cache_stats(
     total_size: int = size_row[0]
 
     # Archived vs metadata-only distribution counts
-    archived_count: int = conn.execute(
-        "SELECT COUNT(*) FROM distributions WHERE archive_path IS NOT NULL"
-    ).fetchone()[0]
+    archived_count: int = conn.execute("SELECT COUNT(*) FROM distributions WHERE archive_path IS NOT NULL").fetchone()[
+        0
+    ]
     metadata_only_count = dist_count - archived_count
 
     age_row = conn.execute(
@@ -536,16 +534,8 @@ def get_cache_stats(
         """
     ).fetchone()
 
-    oldest = (
-        datetime.fromtimestamp(age_row["oldest"], tz=timezone.utc)
-        if age_row["oldest"]
-        else None
-    )
-    newest = (
-        datetime.fromtimestamp(age_row["newest"], tz=timezone.utc)
-        if age_row["newest"]
-        else None
-    )
+    oldest = datetime.fromtimestamp(age_row["oldest"], tz=timezone.utc) if age_row["oldest"] else None
+    newest = datetime.fromtimestamp(age_row["newest"], tz=timezone.utc) if age_row["newest"] else None
 
     usage_percent: float | None = None
     if limit_bytes is not None and limit_bytes > 0:

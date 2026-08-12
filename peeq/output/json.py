@@ -76,9 +76,7 @@ class JSONRenderer(Renderer):
             "versions": [
                 {
                     "version": str(version.version),
-                    "release_date": version.release_date.isoformat()
-                    if version.release_date
-                    else None,
+                    "release_date": version.release_date.isoformat() if version.release_date else None,
                     "yanked": version.yanked,
                     "yanked_reason": version.yanked_reason,
                 }
@@ -228,9 +226,7 @@ class JSONRenderer(Renderer):
         all_yanked = bool(files) and all(f.yanked for f in files)
         version_yanked_reason: str | None = None
         if all_yanked:
-            version_yanked_reason = next(
-                (f.yanked_reason for f in files if f.yanked_reason), None
-            )
+            version_yanked_reason = next((f.yanked_reason for f in files if f.yanked_reason), None)
         self._output(
             {
                 "command": "artifacts",
@@ -362,17 +358,9 @@ class JSONRenderer(Renderer):
                 "metadata_only_count": stats.metadata_only_count,
                 "total_size_bytes": stats.total_size_bytes,
                 "limit_bytes": stats.limit_bytes,
-                "usage_percent": (
-                    round(stats.usage_percent, 1)
-                    if stats.usage_percent is not None
-                    else None
-                ),
-                "oldest_entry": (
-                    stats.oldest_entry.isoformat() if stats.oldest_entry else None
-                ),
-                "newest_entry": (
-                    stats.newest_entry.isoformat() if stats.newest_entry else None
-                ),
+                "usage_percent": (round(stats.usage_percent, 1) if stats.usage_percent is not None else None),
+                "oldest_entry": (stats.oldest_entry.isoformat() if stats.oldest_entry else None),
+                "newest_entry": (stats.newest_entry.isoformat() if stats.newest_entry else None),
             }
         )
 
@@ -438,9 +426,7 @@ class JSONRenderer(Renderer):
                 "package": c.package,
                 "constraints": [
                     {
-                        "required_by": (
-                            f"{r.package}{r.version}" if r.version else r.package
-                        ),
+                        "required_by": (f"{r.package}{r.version}" if r.version else r.package),
                         "requires": r.dependency,
                         "chain": r.chain,
                     }
@@ -451,9 +437,7 @@ class JSONRenderer(Renderer):
             if c.additional_requirements:
                 entry["additional_constraints"] = [
                     {
-                        "required_by": (
-                            f"{r.package}{r.version}" if r.version else r.package
-                        ),
+                        "required_by": (f"{r.package}{r.version}" if r.version else r.package),
                         "requires": r.dependency,
                     }
                     for r in c.additional_requirements
@@ -539,13 +523,9 @@ class JSONRenderer(Renderer):
                         "summary": v.summary,
                         "aliases": v.aliases,
                         "severity_label": v.severity_label,
-                        "severity": [
-                            {"type": s.type, "score": s.score} for s in v.severity
-                        ],
+                        "severity": [{"type": s.type, "score": s.score} for s in v.severity],
                         "fixed_versions": v.fixed_versions,
-                        "references": [
-                            {"type": r.type, "url": r.url} for r in v.references
-                        ],
+                        "references": [{"type": r.type, "url": r.url} for r in v.references],
                         "published": v.published,
                         "modified": v.modified,
                         "withdrawn": v.withdrawn,

@@ -30,10 +30,7 @@ class TestSanitizeFilename:
         assert sanitize_filename("requests-2.31.0.tar.gz") == "requests-2.31.0.tar.gz"
 
     def test_wheel_filename_passes(self) -> None:
-        assert (
-            sanitize_filename("numpy-1.26.0-cp312-cp312-win_amd64.whl")
-            == "numpy-1.26.0-cp312-cp312-win_amd64.whl"
-        )
+        assert sanitize_filename("numpy-1.26.0-cp312-cp312-win_amd64.whl") == "numpy-1.26.0-cp312-cp312-win_amd64.whl"
 
     def test_rejects_unix_directory_prefix(self) -> None:
         with pytest.raises(UnsafeFilenameError, match="Path separator"):
@@ -96,9 +93,7 @@ class TestEscapeXml:
         assert escape_xml("hello world") == "hello world"
 
     def test_escapes_angle_brackets(self) -> None:
-        assert escape_xml("<script>alert(1)</script>") == (
-            "&lt;script&gt;alert(1)&lt;/script&gt;"
-        )
+        assert escape_xml("<script>alert(1)</script>") == ("&lt;script&gt;alert(1)&lt;/script&gt;")
 
     def test_escapes_ampersand(self) -> None:
         assert escape_xml("A & B") == "A &amp; B"
@@ -179,12 +174,8 @@ class TestEscapeXmlSpecifier:
 
     def test_preserves_marker_comparison(self) -> None:
         """PEP 508 marker comparisons with quoted strings."""
-        assert escape_xml_specifier('python_version < "3.10"') == (
-            'python_version < "3.10"'
-        )
-        assert escape_xml_specifier('python_version >= "3.8"') == (
-            'python_version >= "3.8"'
-        )
+        assert escape_xml_specifier('python_version < "3.10"') == ('python_version < "3.10"')
+        assert escape_xml_specifier('python_version >= "3.8"') == ('python_version >= "3.8"')
 
     def test_preserves_angle_bracket_at_end(self) -> None:
         """A lone `<` at end of string (no following char) is preserved."""
@@ -192,9 +183,7 @@ class TestEscapeXmlSpecifier:
 
     def test_escapes_opening_tag(self) -> None:
         """An opening XML tag pattern is escaped."""
-        assert escape_xml_specifier("<system>evil</system>") == (
-            "&lt;system>evil&lt;/system>"
-        )
+        assert escape_xml_specifier("<system>evil</system>") == ("&lt;system>evil&lt;/system>")
 
     def test_escapes_closing_tag(self) -> None:
         assert escape_xml_specifier("</package-info>") == "&lt;/package-info>"
@@ -203,9 +192,7 @@ class TestEscapeXmlSpecifier:
         assert escape_xml_specifier("<!-- comment -->") == "&lt;!-- comment -->"
 
     def test_escapes_processing_instruction(self) -> None:
-        assert escape_xml_specifier("<?xml version='1.0'?>") == (
-            "&lt;?xml version='1.0'?>"
-        )
+        assert escape_xml_specifier("<?xml version='1.0'?>") == ("&lt;?xml version='1.0'?>")
 
     def test_escapes_llm_control_token(self) -> None:
         """LLM control tokens like <|im_start|> are escaped."""
@@ -331,21 +318,14 @@ class TestRedactUrlCredentials:
         assert redact_url_credentials(url) == url
 
     def test_strips_username_and_password(self) -> None:
-        assert (
-            redact_url_credentials("https://user:pass@registry.com/simple/")
-            == "https://registry.com/simple/"
-        )
+        assert redact_url_credentials("https://user:pass@registry.com/simple/") == "https://registry.com/simple/"
 
     def test_strips_token_only(self) -> None:
-        assert (
-            redact_url_credentials("https://token@registry.com/simple/")
-            == "https://registry.com/simple/"
-        )
+        assert redact_url_credentials("https://token@registry.com/simple/") == "https://registry.com/simple/"
 
     def test_preserves_port(self) -> None:
         assert (
-            redact_url_credentials("https://user:pass@registry.com:8080/simple/")
-            == "https://registry.com:8080/simple/"
+            redact_url_credentials("https://user:pass@registry.com:8080/simple/") == "https://registry.com:8080/simple/"
         )
 
     def test_preserves_path_and_query(self) -> None:
@@ -355,23 +335,14 @@ class TestRedactUrlCredentials:
         )
 
     def test_handles_http_scheme(self) -> None:
-        assert (
-            redact_url_credentials("http://user:pass@internal:9000/simple/")
-            == "http://internal:9000/simple/"
-        )
+        assert redact_url_credentials("http://user:pass@internal:9000/simple/") == "http://internal:9000/simple/"
 
     def test_preserves_ipv6_brackets(self) -> None:
         """IPv6 hostnames must retain brackets after credential removal."""
-        assert (
-            redact_url_credentials("http://user:pass@[::1]:8080/simple/")
-            == "http://[::1]:8080/simple/"
-        )
+        assert redact_url_credentials("http://user:pass@[::1]:8080/simple/") == "http://[::1]:8080/simple/"
 
     def test_ipv6_without_port(self) -> None:
-        assert (
-            redact_url_credentials("http://user:pass@[::1]/simple/")
-            == "http://[::1]/simple/"
-        )
+        assert redact_url_credentials("http://user:pass@[::1]/simple/") == "http://[::1]/simple/"
 
     def test_ipv6_no_credentials_unchanged(self) -> None:
         url = "http://[::1]:8080/simple/"

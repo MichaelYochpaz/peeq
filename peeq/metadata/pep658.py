@@ -117,11 +117,7 @@ def _select_metadata_wheel(files: list[FileInfo]) -> FileInfo | None:
     are the smallest and most likely to have representative metadata.
     Fall back to any wheel with `metadata_available=True`.
     """
-    candidates = [
-        f
-        for f in files
-        if f.dist_type == DistType.WHEEL and f.metadata_available and not f.yanked
-    ]
+    candidates = [f for f in files if f.dist_type == DistType.WHEEL and f.metadata_available and not f.yanked]
 
     if not candidates:
         return None

@@ -240,9 +240,7 @@ class CacheManager:
                 sha256=sha256,
                 sha256_source=sha256_source,
                 filename=filename,
-                download_url=redact_url_credentials(download_url)
-                if download_url
-                else None,
+                download_url=redact_url_credentials(download_url) if download_url else None,
                 archive_path=archive_path,
                 size_bytes=size_bytes,
                 created_at=now,
@@ -302,10 +300,7 @@ class CacheManager:
 
         # Verify against expected hash
         if expected_sha256 is not None and computed_hash != expected_sha256:
-            msg = (
-                f"SHA-256 mismatch for {filename}: "
-                f"expected {expected_sha256}, got {computed_hash}"
-            )
+            msg = f"SHA-256 mismatch for {filename}: expected {expected_sha256}, got {computed_hash}"
             raise HashMismatchError(msg)
 
         sha256 = expected_sha256 or computed_hash
@@ -366,9 +361,7 @@ class CacheManager:
                 sha256=sha256,
                 sha256_source=sha256_source,
                 filename=filename,
-                download_url=redact_url_credentials(download_url)
-                if download_url
-                else None,
+                download_url=redact_url_credentials(download_url) if download_url else None,
                 archive_path=rel_path,
                 size_bytes=len(archive_data),
                 created_at=now,
@@ -532,9 +525,7 @@ class CacheManager:
         max_size_mb = get_settings().cache.max_size_mb
         limit_bytes: int | None = max_size_mb * 1024 * 1024 if max_size_mb > 0 else None
         with open_cache_db(self._cache_dir) as conn:
-            return db.get_cache_stats(
-                conn, str(self._cache_dir), limit_bytes=limit_bytes
-            )
+            return db.get_cache_stats(conn, str(self._cache_dir), limit_bytes=limit_bytes)
 
     def clear(self, *, older_than_seconds: int | None = None) -> int:
         """Clear cached data.
@@ -699,8 +690,7 @@ class CacheManager:
             if not to_evict_ids:
                 if current_size > max_bytes:
                     logger.warning(
-                        "Cache (%d MB) exceeds limit (%d MB) but no "
-                        "archives available for eviction.",
+                        "Cache (%d MB) exceeds limit (%d MB) but no archives available for eviction.",
                         current_size // (1024 * 1024),
                         max_size_mb,
                     )
@@ -718,8 +708,7 @@ class CacheManager:
         freed_mb = freed / (1024 * 1024)
         current_mb = current_size / (1024 * 1024)
         logger.info(
-            "Cache limit exceeded (%.1f MB / %d MB). "
-            "Evicted %d archives, freed %.1f MB.",
+            "Cache limit exceeded (%.1f MB / %d MB). Evicted %d archives, freed %.1f MB.",
             current_mb,
             max_size_mb,
             len(to_evict_ids),

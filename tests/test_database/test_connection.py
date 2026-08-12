@@ -25,9 +25,7 @@ class TestOpenCacheDb:
 
     def test_tables_created(self, tmp_path):
         with open_cache_db(tmp_path) as conn:
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-            ).fetchall()
+            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
             table_names = [r[0] for r in tables]
         assert "packages" in table_names
         assert "distributions" in table_names
@@ -36,8 +34,7 @@ class TestOpenCacheDb:
     def test_indices_created(self, tmp_path):
         with open_cache_db(tmp_path) as conn:
             indices = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='index' "
-                "AND name LIKE 'idx_%' ORDER BY name"
+                "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%' ORDER BY name"
             ).fetchall()
             index_names = [r[0] for r in indices]
         assert "idx_distributions_sha256" in index_names
@@ -122,11 +119,7 @@ class TestSchemaVersioning:
         """If schema version differs, tables are dropped and recreated."""
         # Create initial schema
         with open_cache_db(tmp_path) as conn, conn:
-            conn.execute(
-                "INSERT INTO packages "
-                "(registry, name, fetched_at) "
-                "VALUES ('pypi.org', 'test', 1000)"
-            )
+            conn.execute("INSERT INTO packages (registry, name, fetched_at) VALUES ('pypi.org', 'test', 1000)")
 
         # Manually bump user_version to simulate a future version
         db_path = tmp_path / "cache.db"

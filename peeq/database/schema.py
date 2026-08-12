@@ -103,9 +103,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         )
         # Drop everything and start fresh.
         conn.executescript(
-            "DROP TABLE IF EXISTS dependencies;"
-            "DROP TABLE IF EXISTS distributions;"
-            "DROP TABLE IF EXISTS packages;"
+            "DROP TABLE IF EXISTS dependencies;DROP TABLE IF EXISTS distributions;DROP TABLE IF EXISTS packages;"
         )
 
     conn.executescript(_CREATE_TABLES)

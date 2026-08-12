@@ -289,10 +289,7 @@ class TestGetMetadataSdist:
         # Sdist metadata saved (partial) + wheel metadata saved
         assert cache.store_archive.call_count == 1  # sdist stored
         assert cache.save_metadata.call_count == 1  # wheel metadata saved
-        assert (
-            cache.save_metadata.call_args.kwargs["filename"]
-            == "test_package-1.0.0-py3-none-any.whl"
-        )
+        assert cache.save_metadata.call_args.kwargs["filename"] == "test_package-1.0.0-py3-none-any.whl"
 
     async def test_sdist_download_failure(self) -> None:
         backend = _make_backend()
@@ -343,10 +340,7 @@ class TestGetMetadataWheel:
         assert result.source_filename == "test_package-1.0.0-py3-none-any.whl"
         assert result.dependencies is not None
         cache.save_metadata.assert_called_once()
-        assert (
-            cache.save_metadata.call_args.kwargs["filename"]
-            == "test_package-1.0.0-py3-none-any.whl"
-        )
+        assert cache.save_metadata.call_args.kwargs["filename"] == "test_package-1.0.0-py3-none-any.whl"
 
     async def test_wheel_download_failure(self) -> None:
         backend = _make_backend()
@@ -518,10 +512,7 @@ class TestGetMetadataTag:
         assert result.source == "wheel"
         assert result.source_filename == "pkg-1.0.0-cp312-cp312-linux.whl"
         cache.save_metadata.assert_called_once()
-        assert (
-            cache.save_metadata.call_args.kwargs["filename"]
-            == "pkg-1.0.0-cp312-cp312-linux.whl"
-        )
+        assert cache.save_metadata.call_args.kwargs["filename"] == "pkg-1.0.0-cp312-cp312-linux.whl"
 
     async def test_tag_not_found(self) -> None:
         backend = _make_backend()

@@ -81,9 +81,7 @@ def _apply_persistent_pragmas(conn: sqlite3.Connection) -> None:
     result = conn.execute("PRAGMA journal_mode = WAL;").fetchone()
     if result is None or result[0] != "wal":
         # WAL may fail on certain filesystems (e.g. network mounts).
-        logger.warning(
-            "Failed to enable WAL journal mode — falling back to DELETE mode"
-        )
+        logger.warning("Failed to enable WAL journal mode — falling back to DELETE mode")
 
     # Cap WAL file growth at 4 MB to prevent unbounded disk usage
     # during bursty batch inserts (dependency tree resolution).

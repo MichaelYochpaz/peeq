@@ -53,16 +53,12 @@ from tests.test_output._helpers import (
             id="render_info",
         ),
         pytest.param(
-            lambda r: r.render_versions(
-                "pkg", [VersionInfo(version=Version("1.0.0"))], total=1
-            ),
+            lambda r: r.render_versions("pkg", [VersionInfo(version=Version("1.0.0"))], total=1),
             ["<versions"],
             id="render_versions",
         ),
         pytest.param(
-            lambda r: r.render_deps(
-                "pkg", "1.0.0", _metadata(dependencies=[_dep("click")])
-            ),
+            lambda r: r.render_deps("pkg", "1.0.0", _metadata(dependencies=[_dep("click")])),
             ["<dependencies"],
             id="render_deps",
         ),
@@ -965,9 +961,7 @@ class TestRenderLs:
         """Render directory and file entries with details."""
         r, s = _renderer()
         entries = [
-            _ls_entry(
-                path="src/", is_dir=True, file_count=5, subdir_count=2, total_size=1024
-            ),
+            _ls_entry(path="src/", is_dir=True, file_count=5, subdir_count=2, total_size=1024),
             _ls_entry(path="setup.py", is_dir=False, size=200),
         ]
         r.render_ls("pkg", "1.0.0", entries, total=2)

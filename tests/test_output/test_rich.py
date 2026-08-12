@@ -193,9 +193,7 @@ class TestRenderInfo:
         r, s = _renderer()
         report = InfoReport(
             info=_pkg_info(),
-            metadata=_metadata(
-                dependencies=[_dep("urllib3", ">=1.21"), _dep("certifi")]
-            ),
+            metadata=_metadata(dependencies=[_dep("urllib3", ">=1.21"), _dep("certifi")]),
         )
         r.render_info(report)
         out = s.getvalue()
@@ -470,15 +468,11 @@ class TestRenderVersions:
         cell_width = len(cells[0].plain)  # 24 chars for dev versions
 
         # Wide terminal: 3 columns fit
-        wide_grid = RichRenderer._layout_text_grid(
-            cells, available_width=cell_width * 3 + 6
-        )
+        wide_grid = RichRenderer._layout_text_grid(cells, available_width=cell_width * 3 + 6)
         assert wide_grid.row_count == 1
 
         # Narrow terminal: only 2 columns fit
-        narrow_grid = RichRenderer._layout_text_grid(
-            cells, available_width=cell_width * 2 + 3
-        )
+        narrow_grid = RichRenderer._layout_text_grid(cells, available_width=cell_width * 2 + 3)
         assert narrow_grid.row_count == 2
 
 

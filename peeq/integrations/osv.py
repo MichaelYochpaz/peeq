@@ -219,9 +219,7 @@ def _parse_timestamp(value: str | None) -> datetime | None:
         return None
     try:
         # RFC 3339 timestamps end in "Z" — replace with +00:00 for fromisoformat
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
-            timezone.utc
-        )
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
     except (ValueError, AttributeError):
         logger.debug("Failed to parse timestamp: %s", value)
         return None

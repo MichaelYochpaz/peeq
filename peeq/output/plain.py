@@ -159,9 +159,7 @@ class PlainRenderer(Renderer):
             self.render_versions(
                 info.name,
                 report.versions,
-                report.versions_total
-                if report.versions_total is not None
-                else len(report.versions),
+                report.versions_total if report.versions_total is not None else len(report.versions),
                 latest_version=str(info.latest_version),
             )
 
@@ -216,27 +214,16 @@ class PlainRenderer(Renderer):
         kind = "yanked versions" if yanked else "versions"
 
         if not versions and offset > 0 and total > 0:
-            self._writeln(
-                f"No {kind} at offset {offset} for {safe_name} (total: {total})."
-            )
+            self._writeln(f"No {kind} at offset {offset} for {safe_name} (total: {total}).")
             return
 
         has_more = (offset + showing) < total
         if matching and original_total is not None:
             if has_more or offset > 0:
                 range_label = _plain_range_label(showing, total, offset)
-                header = (
-                    f"{safe_name} {kind}"
-                    f" ({range_label}"
-                    f" matching {self._safe(matching)};"
-                    f" {original_total} total):"
-                )
+                header = f"{safe_name} {kind} ({range_label} matching {self._safe(matching)}; {original_total} total):"
             else:
-                header = (
-                    f"{safe_name} {kind}"
-                    f" ({total} of {original_total}"
-                    f" matching {self._safe(matching)}):"
-                )
+                header = f"{safe_name} {kind} ({total} of {original_total} matching {self._safe(matching)}):"
         else:
             range_label = _plain_range_label(showing, total, offset)
             header = f"{safe_name} {kind} ({range_label}):"
@@ -269,9 +256,7 @@ class PlainRenderer(Renderer):
     ) -> None:
         """Render dependencies as a dash list."""
         tag_label = f" ({self._safe(tag)})" if tag else ""
-        header = (
-            f"Dependencies for {self._safe(name)} {self._safe(version)}{tag_label}:"
-        )
+        header = f"Dependencies for {self._safe(name)} {self._safe(version)}{tag_label}:"
 
         if metadata.dependencies is None:
             self._writeln(header)
@@ -328,24 +313,15 @@ class PlainRenderer(Renderer):
             for c in diff.changed:
                 group = f" [{self._safe(c.extras_group)}]" if c.extras_group else ""
                 self._writeln(
-                    f"  {self._safe(c.name)}{group}"
-                    f" {self._safe(c.old_specifier)} -> {self._safe(c.new_specifier)}"
+                    f"  {self._safe(c.name)}{group} {self._safe(c.old_specifier)} -> {self._safe(c.new_specifier)}"
                 )
                 if c.old_markers != c.new_markers:
                     old_m = self._safe(c.old_markers) if c.old_markers else "(none)"
                     new_m = self._safe(c.new_markers) if c.new_markers else "(none)"
                     self._writeln(f"    markers: {old_m} -> {new_m}")
                 if c.old_extras != c.new_extras:
-                    old_e = (
-                        f"[{', '.join(self._safe(e) for e in c.old_extras)}]"
-                        if c.old_extras
-                        else "(none)"
-                    )
-                    new_e = (
-                        f"[{', '.join(self._safe(e) for e in c.new_extras)}]"
-                        if c.new_extras
-                        else "(none)"
-                    )
+                    old_e = f"[{', '.join(self._safe(e) for e in c.old_extras)}]" if c.old_extras else "(none)"
+                    new_e = f"[{', '.join(self._safe(e) for e in c.new_extras)}]" if c.new_extras else "(none)"
                     self._writeln(f"    extras: {old_e} -> {new_e}")
         else:
             self._writeln("  (none)")
@@ -401,23 +377,15 @@ class PlainRenderer(Renderer):
             self._writeln(msg)
             self._writeln()
 
-        self._writeln(
-            f"Distribution artifacts for {self._safe(name)} {self._safe(version)}:"
-        )
+        self._writeln(f"Distribution artifacts for {self._safe(name)} {self._safe(version)}:")
         for f in files:
             size = format_size(f.size) if f.size is not None else "unknown size"
-            python = (
-                f", Python {self._safe(f.requires_python)}" if f.requires_python else ""
-            )
+            python = f", Python {self._safe(f.requires_python)}" if f.requires_python else ""
             yanked = ""
             if f.yanked:
-                yanked_detail = (
-                    f": {self._safe(f.yanked_reason)}" if f.yanked_reason else ""
-                )
+                yanked_detail = f": {self._safe(f.yanked_reason)}" if f.yanked_reason else ""
                 yanked = f" (yanked{yanked_detail})"
-            self._writeln(
-                f"  - {self._safe(f.filename)} ({f.dist_type.value}, {size}{python}){yanked}"
-            )
+            self._writeln(f"  - {self._safe(f.filename)} ({f.dist_type.value}, {size}{python}){yanked}")
 
     def render_ls(  # noqa: PLR0913
         self,
@@ -440,38 +408,23 @@ class PlainRenderer(Renderer):
         count_label = _plain_range_label(showing, total, offset)
         # Append " entries" only for the simple "N entries" / "N of M entries" forms.
         if offset == 0:
-            count_label_full = (
-                f"{showing} of {total} entries"
-                if showing < total
-                else f"{total} entries"
-            )
+            count_label_full = f"{showing} of {total} entries" if showing < total else f"{total} entries"
         else:
             count_label_full = count_label
         prefix_label = f" under {self._safe(prefix)}" if prefix else ""
-        glob_label = (
-            f" matching {', '.join(self._safe(p) for p in glob_patterns)}"
-            if glob_patterns
-            else ""
-        )
+        glob_label = f" matching {', '.join(self._safe(p) for p in glob_patterns)}" if glob_patterns else ""
         header = f"Archive contents for {safe_name} {safe_version}{prefix_label}{glob_label} ({count_label_full}):"
 
         if not entries:
             if offset > 0 and total > 0:
                 self._writeln(
-                    f"No entries at offset {offset} for"
-                    f" {safe_name} {safe_version}{prefix_label}"
-                    f" (total: {total})."
+                    f"No entries at offset {offset} for {safe_name} {safe_version}{prefix_label} (total: {total})."
                 )
             elif glob_patterns:
                 patterns = ", ".join(self._safe(p) for p in glob_patterns)
-                self._writeln(
-                    f"No files matched glob {patterns}"
-                    f" for {safe_name} {safe_version}{prefix_label}."
-                )
+                self._writeln(f"No files matched glob {patterns} for {safe_name} {safe_version}{prefix_label}.")
             else:
-                self._writeln(
-                    f"Archive contents for {safe_name} {safe_version}{prefix_label} (0 entries):"
-                )
+                self._writeln(f"Archive contents for {safe_name} {safe_version}{prefix_label} (0 entries):")
             return
 
         self._writeln(header)
@@ -483,9 +436,7 @@ class PlainRenderer(Renderer):
                 detail = ", ".join(parts)
                 self._writeln(f"  - {self._safe(entry.path)} (directory, {detail})")
             else:
-                self._writeln(
-                    f"  - {self._safe(entry.path)} ({format_size(entry.size)})"
-                )
+                self._writeln(f"  - {self._safe(entry.path)} ({format_size(entry.size)})")
 
     # -- File inspection ----------------------------------------------------
 
@@ -529,10 +480,7 @@ class PlainRenderer(Renderer):
 
         self._writeln(f"Location: {stats.location}")
         self._writeln(f"Packages: {stats.package_count}")
-        self._writeln(
-            f"Archives: {stats.archived_count} distributions"
-            f" ({format_size(stats.total_size_bytes)})"
-        )
+        self._writeln(f"Archives: {stats.archived_count} distributions ({format_size(stats.total_size_bytes)})")
         self._writeln(f"Metadata only: {stats.metadata_only_count} distributions")
         self._writeln(f"Cache size: {size_str}")
         if stats.oldest_entry:
@@ -582,11 +530,7 @@ class PlainRenderer(Renderer):
             self._writeln(f"CONFLICT: {self._safe(conflict.package)}")
             self._writeln()
             for req in conflict.requirements:
-                spec = (
-                    f"{self._safe(req.package)}{self._safe(req.version)}"
-                    if req.version
-                    else self._safe(req.package)
-                )
+                spec = f"{self._safe(req.package)}{self._safe(req.version)}" if req.version else self._safe(req.package)
                 self._writeln(f"  {spec} requires: {self._safe(req.dependency)}")
                 if req.chain:
                     chain_str = " -> ".join(self._safe(c) for c in req.chain)
@@ -594,10 +538,7 @@ class PlainRenderer(Renderer):
                 self._writeln()
 
             if conflict.additional_requirements:
-                self._writeln(
-                    f"  Also constrains {self._safe(conflict.package)}"
-                    " (not part of the conflict):"
-                )
+                self._writeln(f"  Also constrains {self._safe(conflict.package)} (not part of the conflict):")
                 for req in conflict.additional_requirements:
                     spec = (
                         f"{self._safe(req.package)}{self._safe(req.version)}"
@@ -619,14 +560,10 @@ class PlainRenderer(Renderer):
 
     def render_why(self, result: WhyResult) -> None:
         """Render dependency path trace results as plain text."""
-        target_label = (
-            f"{self._safe(result.target)}=={self._safe(result.target_version)}"
-        )
+        target_label = f"{self._safe(result.target)}=={self._safe(result.target_version)}"
 
         if result.is_direct:
-            self._writeln(
-                f"{target_label} is a direct requirement (not pulled in transitively)."
-            )
+            self._writeln(f"{target_label} is a direct requirement (not pulled in transitively).")
             return
 
         source = self._safe(result.paths[0].hops[0].package)
@@ -662,11 +599,7 @@ class PlainRenderer(Renderer):
         for conflict in conflicts:
             self._writeln(f"CONFLICT: {self._safe(conflict.package)}")
             for req in conflict.requirements:
-                spec = (
-                    f"{self._safe(req.package)}{self._safe(req.version)}"
-                    if req.version
-                    else self._safe(req.package)
-                )
+                spec = f"{self._safe(req.package)}{self._safe(req.version)}" if req.version else self._safe(req.package)
                 self._writeln(f"  {spec} requires: {self._safe(req.dependency)}")
                 if req.chain:
                     chain_str = " -> ".join(self._safe(c) for c in req.chain)
@@ -680,9 +613,7 @@ class PlainRenderer(Renderer):
 
     def render_vulns(self, report: VulnerabilityReport) -> None:
         """Render vulnerability report as plain text."""
-        self._writeln(
-            f"Vulnerabilities for {self._safe(report.package)} {self._safe(report.version)}:"
-        )
+        self._writeln(f"Vulnerabilities for {self._safe(report.package)} {self._safe(report.version)}:")
 
         if not report.vulnerabilities:
             self._writeln("No known vulnerabilities.")
@@ -695,28 +626,21 @@ class PlainRenderer(Renderer):
             if cves:
                 self._writeln(f"CVE: {', '.join(self._safe(c) for c in cves)}")
             severity = vuln.severity_label or (
-                vuln.severity[0].type.replace("CVSS_", "CVSS ")
-                if vuln.severity
-                else None
+                vuln.severity[0].type.replace("CVSS_", "CVSS ") if vuln.severity else None
             )
             if severity:
                 self._writeln(f"Severity: {self._safe(severity)}")
             if vuln.summary:
                 self._writeln(f"Summary: {self._safe(vuln.summary)}")
             if vuln.fixed_versions:
-                self._writeln(
-                    f"Fixed in: {', '.join(self._safe(v) for v in vuln.fixed_versions)}"
-                )
+                self._writeln(f"Fixed in: {', '.join(self._safe(v) for v in vuln.fixed_versions)}")
             self._writeln()
 
         recommendation = build_vulnerability_recommendation(report.vulnerabilities)
         if recommendation is not None:
             self._writeln(f"Suggested upgrade: >= {self._safe(recommendation.version)}")
             if recommendation.unresolved_count:
-                self._writeln(
-                    "Note: "
-                    f"{format_unfixed_vulnerability_note(recommendation.unresolved_count)}"
-                )
+                self._writeln(f"Note: {format_unfixed_vulnerability_note(recommendation.unresolved_count)}")
 
     # -- Errors -------------------------------------------------------------
 

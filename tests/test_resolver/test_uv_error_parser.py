@@ -166,9 +166,7 @@ class TestExtract:
         # llama-stack-provider-ragas[remote] should appear as a parent.
         all_reqs = [r for reqs in by_dep.values() for r in reqs]
         parent_names = {r.package for r in all_reqs}
-        assert any("ragas" in p and "remote" in p for p in parent_names), (
-            f"Expected extras parent, got: {parent_names}"
-        )
+        assert any("ragas" in p and "remote" in p for p in parent_names), f"Expected extras parent, got: {parent_names}"
 
     def test_skips_derived_conclusions(self) -> None:
         text = _load_fixture("transitive_conflict.txt")

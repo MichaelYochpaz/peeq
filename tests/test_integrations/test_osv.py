@@ -132,9 +132,7 @@ class TestExtractSeverity:
 
     def test_affected_severity_fallback(self) -> None:
         """Fall back to affected[].severity when top-level is empty."""
-        raw = {
-            "affected": [{"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:L"}]}]
-        }
+        raw = {"affected": [{"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:L"}]}]}
         result = _extract_severity(raw)
         assert len(result) == 1
         assert result[0].score == "CVSS:3.1/AV:L"
@@ -255,9 +253,7 @@ class TestExtractReferences:
         }
         result = _extract_references(raw)
         assert len(result) == 2
-        assert result[0] == VulnerabilityReference(
-            type="ADVISORY", url="https://example.com/advisory"
-        )
+        assert result[0] == VulnerabilityReference(type="ADVISORY", url="https://example.com/advisory")
 
     def test_skips_empty_url(self) -> None:
         """Skip references with empty URL."""
@@ -331,9 +327,7 @@ class TestOSVClient:
     @respx.mock
     async def test_no_vulnerabilities(self) -> None:
         """Return empty report when OSV finds no vulnerabilities."""
-        respx.post(_QUERY_URL).mock(
-            return_value=httpx.Response(200, json={"vulns": []})
-        )
+        respx.post(_QUERY_URL).mock(return_value=httpx.Response(200, json={"vulns": []}))
         async with OSVClient() as client:
             report = await client.query("safe-pkg", "1.0.0")
 
@@ -350,9 +344,7 @@ class TestOSVClient:
             aliases=["CVE-2024-9999"],
             fixed_versions=["2.0.0"],
         )
-        respx.post(_QUERY_URL).mock(
-            return_value=httpx.Response(200, json={"vulns": [vuln]})
-        )
+        respx.post(_QUERY_URL).mock(return_value=httpx.Response(200, json={"vulns": [vuln]}))
         async with OSVClient() as client:
             report = await client.query("vuln-pkg", "1.0.0")
 
@@ -371,9 +363,7 @@ class TestOSVClient:
             vuln_id="GHSA-withdrawn",
             withdrawn="2024-01-01T00:00:00Z",
         )
-        respx.post(_QUERY_URL).mock(
-            return_value=httpx.Response(200, json={"vulns": [active, withdrawn]})
-        )
+        respx.post(_QUERY_URL).mock(return_value=httpx.Response(200, json={"vulns": [active, withdrawn]}))
         async with OSVClient() as client:
             report = await client.query("pkg", "1.0.0")
 
@@ -408,9 +398,7 @@ class TestOSVClient:
     @respx.mock
     async def test_request_payload_format(self) -> None:
         """Verify the request payload sent to OSV API."""
-        route = respx.post(_QUERY_URL).mock(
-            return_value=httpx.Response(200, json={"vulns": []})
-        )
+        route = respx.post(_QUERY_URL).mock(return_value=httpx.Response(200, json={"vulns": []}))
         async with OSVClient() as client:
             await client.query("my-package", "1.2.3")
 
@@ -433,9 +421,7 @@ class TestOSVClient:
     @respx.mock
     async def test_non_success_status_raises_osv_error(self) -> None:
         """Raise OSVError on non-2xx status codes."""
-        respx.post(_QUERY_URL).mock(
-            return_value=httpx.Response(500, text="Server Error")
-        )
+        respx.post(_QUERY_URL).mock(return_value=httpx.Response(500, text="Server Error"))
         async with OSVClient() as client:
             with pytest.raises(OSVError, match="500"):
                 await client.query("pkg", "1.0.0")

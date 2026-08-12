@@ -80,9 +80,7 @@ def _dep(raw: str) -> Dependency:
 class TestGetVersions:
     """Tests for PackageProvider.get_versions()."""
 
-    async def test_returns_versions_sorted_descending(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_returns_versions_sorted_descending(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.versions.return_value = [
             VersionInfo(version=Version("1.0.0")),
             VersionInfo(version=Version("2.0.0")),
@@ -91,9 +89,7 @@ class TestGetVersions:
         versions = await provider.get_versions("requests")
         assert versions == [Version("2.0.0"), Version("1.5.0"), Version("1.0.0")]
 
-    async def test_filters_prereleases_by_default(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_filters_prereleases_by_default(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.versions.return_value = [
             VersionInfo(version=Version("1.0.0")),
             VersionInfo(version=Version("2.0.0rc1")),
@@ -124,9 +120,7 @@ class TestGetVersions:
         versions = await provider.get_versions("requests")
         assert Version("2.0.0rc1") in versions
 
-    async def test_filters_dev_releases(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_filters_dev_releases(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.versions.return_value = [
             VersionInfo(version=Version("1.0.0")),
             VersionInfo(version=Version("1.1.0.dev1")),
@@ -134,18 +128,14 @@ class TestGetVersions:
         versions = await provider.get_versions("requests")
         assert Version("1.1.0.dev1") not in versions
 
-    async def test_caches_results(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_caches_results(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.versions.return_value = [VersionInfo(version=Version("1.0.0"))]
         await provider.get_versions("requests")
         await provider.get_versions("requests")
         # Backend should only be called once.
         mock_backend.versions.assert_called_once_with("requests")
 
-    async def test_yanked_cache_prepopulated(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_yanked_cache_prepopulated(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         """get_versions() pre-populates _yanked_cache from VersionInfo data."""
         mock_backend.versions.return_value = [
             VersionInfo(version=Version("2.0.0"), yanked=False),
@@ -158,16 +148,12 @@ class TestGetVersions:
         assert provider._yanked_cache[("pkg", "1.5.0")] is True
         assert provider._yanked_cache[("pkg", "1.0.0")] is False
 
-    async def test_empty_versions(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_empty_versions(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.versions.return_value = []
         versions = await provider.get_versions("nonexistent")
         assert versions == []
 
-    async def test_filters_yanked_by_default(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_filters_yanked_by_default(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         """Yanked versions are excluded by default."""
         mock_backend.versions.return_value = [
             VersionInfo(version=Version("2.0.0"), yanked=False),
@@ -178,9 +164,7 @@ class TestGetVersions:
         assert Version("1.5.0") not in versions
         assert versions == [Version("2.0.0"), Version("1.0.0")]
 
-    async def test_includes_yanked_when_requested(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_includes_yanked_when_requested(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         """Yanked versions are included when include_yanked=True."""
         mock_backend.versions.return_value = [
             VersionInfo(version=Version("2.0.0"), yanked=False),
@@ -245,9 +229,7 @@ class TestGetVersions:
         versions = await provider.get_versions("pkg")
         assert Version("1.0.0") in versions
 
-    async def test_cache_distinguishes_include_yanked(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_cache_distinguishes_include_yanked(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         """Cache keys differ for include_yanked=True vs False."""
         mock_backend.versions.return_value = [
             VersionInfo(version=Version("2.0.0"), yanked=False),
@@ -454,9 +436,7 @@ class TestGetDependencies:
 class TestIsYanked:
     """Tests for PackageProvider.is_yanked()."""
 
-    async def test_not_yanked(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_not_yanked(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.files.return_value = [
             FileInfo(
                 filename="pkg-1.0.0.tar.gz",
@@ -467,9 +447,7 @@ class TestIsYanked:
         ]
         assert await provider.is_yanked("pkg", "1.0.0") is False
 
-    async def test_all_files_yanked(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_all_files_yanked(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.files.return_value = [
             FileInfo(
                 filename="pkg-1.0.0.tar.gz",
@@ -486,9 +464,7 @@ class TestIsYanked:
         ]
         assert await provider.is_yanked("pkg", "1.0.0") is True
 
-    async def test_partial_yank_not_yanked(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_partial_yank_not_yanked(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         """If some files are yanked but not all, version is not yanked."""
         mock_backend.files.return_value = [
             FileInfo(
@@ -506,16 +482,12 @@ class TestIsYanked:
         ]
         assert await provider.is_yanked("pkg", "1.0.0") is False
 
-    async def test_no_files_not_yanked(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_no_files_not_yanked(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         """Empty file list means not yanked."""
         mock_backend.files.return_value = []
         assert await provider.is_yanked("pkg", "1.0.0") is False
 
-    async def test_caches_results(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_caches_results(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         mock_backend.files.return_value = [
             FileInfo(
                 filename="pkg-1.0.0.tar.gz",
@@ -528,9 +500,7 @@ class TestIsYanked:
         await provider.is_yanked("pkg", "1.0.0")
         mock_backend.files.assert_called_once()
 
-    async def test_backend_error_returns_false(
-        self, provider: PackageProvider, mock_backend: AsyncMock
-    ) -> None:
+    async def test_backend_error_returns_false(self, provider: PackageProvider, mock_backend: AsyncMock) -> None:
         """Backend errors default to not-yanked (permissive)."""
         mock_backend.files.side_effect = Exception("network error")
         assert await provider.is_yanked("pkg", "1.0.0") is False

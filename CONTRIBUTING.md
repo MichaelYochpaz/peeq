@@ -67,6 +67,12 @@ See `pyproject.toml` for the full rule set.
 - **Lazy `%`-style formatting** in logging calls — no f-strings, so messages
   are only interpolated when the log level is active (`G004`).
 
+### Line Length
+
+Ruff uses 120 characters as its formatting target. This is a readability target, not a hard maximum: `E501` is intentionally disabled because formatters cannot safely restructure comments, docstrings, URLs, or user-facing strings.
+
+Let Ruff format code structure. Do not manually wrap prose, docstrings, or strings solely to satisfy the target; wrap them when doing so materially improves readability.
+
 ### Docstrings
 
 Use [Google-style](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) docstrings.

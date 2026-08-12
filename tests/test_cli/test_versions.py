@@ -401,9 +401,7 @@ class TestAllFlag:
         ):
             await versions("testpkg", show_all=True, limit=100, pre=False)
 
-        renderer.render_error.assert_called_once_with(
-            "--all and --limit cannot be used together"
-        )
+        renderer.render_error.assert_called_once_with("--all and --limit cannot be used together")
 
 
 class TestDefaultLimit:

@@ -35,9 +35,7 @@ def _single_path_result() -> WhyResult:
             WhyPath(
                 hops=[
                     PathHop(package="root-pkg", version="1.0.0"),
-                    PathHop(
-                        package="middle-pkg", version="2.0.0", requirement=">=2.0,<4"
-                    ),
+                    PathHop(package="middle-pkg", version="2.0.0", requirement=">=2.0,<4"),
                     PathHop(package="target-pkg", version="3.0.0"),
                 ]
             ),

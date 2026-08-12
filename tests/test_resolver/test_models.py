@@ -159,12 +159,8 @@ class TestSolverResult:
     def test_construction(self) -> None:
         result = SolverResult(
             resolved=[
-                ResolvedDependency(
-                    name="flask", version=Version("3.0.0"), dependencies=["click"]
-                ),
-                ResolvedDependency(
-                    name="click", version=Version("8.1.0"), dependencies=[]
-                ),
+                ResolvedDependency(name="flask", version=Version("3.0.0"), dependencies=["click"]),
+                ResolvedDependency(name="click", version=Version("8.1.0"), dependencies=[]),
             ],
             solver_id="uv",
         )

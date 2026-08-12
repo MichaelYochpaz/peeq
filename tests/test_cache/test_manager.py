@@ -169,9 +169,7 @@ class TestPackageOps:
 
 
 class TestStoreArchive:
-    def test_store_and_retrieve(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_store_and_retrieve(self, manager: CacheManager, sample_archive: bytes) -> None:
         expected_hash = _sha256(sample_archive)
         result = manager.store_archive(
             registry="pypi.org",
@@ -203,9 +201,7 @@ class TestStoreArchive:
                 expected_sha256="0" * 64,  # Wrong hash
             )
 
-    def test_computed_hash_when_no_expected(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_computed_hash_when_no_expected(self, manager: CacheManager, sample_archive: bytes) -> None:
         result = manager.store_archive(
             registry="pypi.org",
             name="pkg",
@@ -243,9 +239,7 @@ class TestStoreArchive:
         # Both should reference the same archive path
         assert r2.archive_path == r1.archive_path
 
-    def test_store_with_metadata(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_store_with_metadata(self, manager: CacheManager, sample_archive: bytes) -> None:
         metadata = PackageMetadata(
             dependencies=[
                 Dependency.from_requirement_string("urllib3>=1.21.1,<3"),
@@ -416,9 +410,7 @@ class TestGetArchivePath:
     def test_returns_none_when_not_cached(self, manager: CacheManager) -> None:
         assert manager.get_archive_path("pypi.org", "nope", "1.0.0") is None
 
-    def test_returns_none_when_file_deleted(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_returns_none_when_file_deleted(self, manager: CacheManager, sample_archive: bytes) -> None:
         result = manager.store_archive(
             registry="pypi.org",
             name="pkg",
@@ -430,9 +422,7 @@ class TestGetArchivePath:
         (manager.cache_dir / result.archive_path).unlink()
         assert manager.get_archive_path("pypi.org", "pkg", "1.0.0") is None
 
-    def test_ignores_metadata_only_rows(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_ignores_metadata_only_rows(self, manager: CacheManager, sample_archive: bytes) -> None:
         manager.save_metadata(
             registry="pypi.org",
             name="pkg",
@@ -621,9 +611,7 @@ class TestDependencyLookups:
         )
 
         dependents = manager.find_dependents("numpy")
-        assert dependents == [
-            {"name": "my-pkg", "version": "1.0.0", "specifier": ">=1.21"}
-        ]
+        assert dependents == [{"name": "my-pkg", "version": "1.0.0", "specifier": ">=1.21"}]
 
 
 # ---------------------------------------------------------------------------
@@ -638,9 +626,7 @@ class TestSHA256:
         f.write_bytes(data)
         assert CacheManager.compute_sha256_file(f) == _sha256(data)
 
-    def test_verify_archive_valid(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_verify_archive_valid(self, manager: CacheManager, sample_archive: bytes) -> None:
         manager.store_archive(
             registry="pypi.org",
             name="pkg",
@@ -650,9 +636,7 @@ class TestSHA256:
         )
         assert manager.verify_archive("pypi.org", "pkg", "1.0.0") is True
 
-    def test_verify_archive_corrupted(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_verify_archive_corrupted(self, manager: CacheManager, sample_archive: bytes) -> None:
         result = manager.store_archive(
             registry="pypi.org",
             name="pkg",
@@ -669,9 +653,7 @@ class TestSHA256:
     def test_verify_archive_not_cached(self, manager: CacheManager) -> None:
         assert manager.verify_archive("pypi.org", "nope", "1.0.0") is False
 
-    def test_verify_archive_ignores_metadata_only_rows(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_verify_archive_ignores_metadata_only_rows(self, manager: CacheManager, sample_archive: bytes) -> None:
         manager.save_metadata(
             registry="pypi.org",
             name="pkg",
@@ -705,9 +687,7 @@ class TestCacheManagement:
         assert stats.distribution_count == 0
         assert stats.total_size_bytes == 0
 
-    def test_get_stats_with_data(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_get_stats_with_data(self, manager: CacheManager, sample_archive: bytes) -> None:
         manager.store_archive(
             registry="pypi.org",
             name="pkg",
@@ -738,9 +718,7 @@ class TestCacheManagement:
         # Archives dir should be gone
         assert not manager.archives_dir.exists()
 
-    def test_clear_older_than(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_clear_older_than(self, manager: CacheManager, sample_archive: bytes) -> None:
         base_time = 1_700_000_000
         with patch("peeq.cache.manager.time") as mock_time:
             mock_time.time.return_value = base_time
@@ -757,9 +735,7 @@ class TestCacheManagement:
             evicted = manager.clear(older_than_seconds=0)
             assert evicted == 1
 
-    def test_clear_older_than_keeps_recent(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_clear_older_than_keeps_recent(self, manager: CacheManager, sample_archive: bytes) -> None:
         manager.store_archive(
             registry="pypi.org",
             name="pkg",
@@ -825,9 +801,7 @@ class TestStoreResult:
 
 
 class TestMaybeEvict:
-    def test_exceeds_limit_triggers_eviction(
-        self, manager: CacheManager, cache_dir: Path
-    ) -> None:
+    def test_exceeds_limit_triggers_eviction(self, manager: CacheManager, cache_dir: Path) -> None:
         """Evict least-recently-used archives when cache exceeds size limit."""
         archive_size = 400_000  # 400 KB each
         base_time = 1_700_000_000
@@ -860,9 +834,7 @@ class TestMaybeEvict:
         assert manager.get_archive_path("pypi.org", "pkg1", "1.0.0") is not None
         assert manager.get_archive_path("pypi.org", "pkg2", "1.0.0") is not None
 
-    def test_under_limit_no_eviction(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_under_limit_no_eviction(self, manager: CacheManager, sample_archive: bytes) -> None:
         """Skip eviction when cache is under the size limit."""
         with patch("peeq.cache.manager.get_settings") as mock_settings:
             mock_settings.return_value.cache.max_size_mb = 100
@@ -886,9 +858,7 @@ class TestMaybeEvict:
             manager.maybe_evict()
             mock_settings.assert_not_called()
 
-    def test_unlimited_cache_skips_eviction(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_unlimited_cache_skips_eviction(self, manager: CacheManager, sample_archive: bytes) -> None:
         """Skip eviction when max_size_mb is 0 (unlimited)."""
         with patch("peeq.cache.manager.get_settings") as mock_settings:
             mock_settings.return_value.cache.max_size_mb = 0
@@ -972,9 +942,7 @@ class TestMaybeEvict:
 class TestAtomicWrite:
     """Verify that the atomic write pattern leaves no .tmp files."""
 
-    def test_no_tmp_files_after_successful_store(
-        self, manager: CacheManager, sample_archive: bytes
-    ) -> None:
+    def test_no_tmp_files_after_successful_store(self, manager: CacheManager, sample_archive: bytes) -> None:
         """After a successful store, no .tmp files should remain."""
         manager.store_archive(
             registry="pypi.org",

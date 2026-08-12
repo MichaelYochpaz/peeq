@@ -156,9 +156,7 @@ class TestInfoOrchestration:
         )
         backend.check.return_value = latest_info
 
-        mock_report = VulnerabilityReport(
-            package="mylib", version="2.0.0", vulnerabilities=[]
-        )
+        mock_report = VulnerabilityReport(package="mylib", version="2.0.0", vulnerabilities=[])
 
         service = _make_service(backend=backend)
         with patch.object(
@@ -283,9 +281,7 @@ class TestInfoOrchestration:
         )
         backend.check.return_value = latest_info
 
-        mock_vuln_report = VulnerabilityReport(
-            package="mylib", version="2.0.0", vulnerabilities=[]
-        )
+        mock_vuln_report = VulnerabilityReport(package="mylib", version="2.0.0", vulnerabilities=[])
 
         service = _make_service(backend=backend)
         with (

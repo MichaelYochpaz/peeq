@@ -406,10 +406,7 @@ def _list_tar(
             if not is_dir:
                 file_count += 1
                 if file_count > limits.max_file_count:
-                    msg = (
-                        f"Archive exceeds max file count "
-                        f"({limits.max_file_count:,} files)"
-                    )
+                    msg = f"Archive exceeds max file count ({limits.max_file_count:,} files)"
                     raise ExtractionLimitExceededError(msg)
 
             members.append(
@@ -486,9 +483,7 @@ def _extract_all_tar(
 
             file_count += 1
             if file_count > limits.max_file_count:
-                msg = (
-                    f"Archive exceeds max file count ({limits.max_file_count:,} files)"
-                )
+                msg = f"Archive exceeds max file count ({limits.max_file_count:,} files)"
                 raise ExtractionLimitExceededError(msg)
 
             if info.size > limits.max_single_file_bytes:
@@ -500,10 +495,7 @@ def _extract_all_tar(
 
             total_bytes += info.size
             if total_bytes > limits.max_total_bytes:
-                msg = (
-                    f"Archive exceeds max total uncompressed size "
-                    f"({limits.max_total_bytes:,} bytes)"
-                )
+                msg = f"Archive exceeds max total uncompressed size ({limits.max_total_bytes:,} bytes)"
                 raise ExtractionLimitExceededError(msg)
 
             f = tf.extractfile(info)
@@ -532,9 +524,7 @@ def _extract_tar_to_disk(
 
             file_count += 1
             if file_count > limits.max_file_count:
-                msg = (
-                    f"Archive exceeds max file count ({limits.max_file_count:,} files)"
-                )
+                msg = f"Archive exceeds max file count ({limits.max_file_count:,} files)"
                 raise ExtractionLimitExceededError(msg)
 
             if info.size > limits.max_single_file_bytes:
@@ -546,10 +536,7 @@ def _extract_tar_to_disk(
 
             total_bytes += info.size
             if total_bytes > limits.max_total_bytes:
-                msg = (
-                    f"Archive exceeds max total uncompressed size "
-                    f"({limits.max_total_bytes:,} bytes)"
-                )
+                msg = f"Archive exceeds max total uncompressed size ({limits.max_total_bytes:,} bytes)"
                 raise ExtractionLimitExceededError(msg)
 
             # PEP 706 safety: validate and extract
@@ -663,10 +650,7 @@ def _list_zip(
             if not is_dir:
                 file_count += 1
                 if file_count > limits.max_file_count:
-                    msg = (
-                        f"Archive exceeds max file count "
-                        f"({limits.max_file_count:,} files)"
-                    )
+                    msg = f"Archive exceeds max file count ({limits.max_file_count:,} files)"
                     raise ExtractionLimitExceededError(msg)
 
             members.append(
@@ -745,9 +729,7 @@ def _extract_all_zip(
 
             file_count += 1
             if file_count > limits.max_file_count:
-                msg = (
-                    f"Archive exceeds max file count ({limits.max_file_count:,} files)"
-                )
+                msg = f"Archive exceeds max file count ({limits.max_file_count:,} files)"
                 raise ExtractionLimitExceededError(msg)
 
             # Pre-check declared sizes (fast reject for obviously
@@ -766,10 +748,7 @@ def _extract_all_zip(
 
             total_bytes += len(data)
             if total_bytes > limits.max_total_bytes:
-                msg = (
-                    f"Archive exceeds max total uncompressed size "
-                    f"({limits.max_total_bytes:,} bytes)"
-                )
+                msg = f"Archive exceeds max total uncompressed size ({limits.max_total_bytes:,} bytes)"
                 raise ExtractionLimitExceededError(msg)
 
             result[path] = data
@@ -795,9 +774,7 @@ def _extract_zip_to_disk(
 
             file_count += 1
             if file_count > limits.max_file_count:
-                msg = (
-                    f"Archive exceeds max file count ({limits.max_file_count:,} files)"
-                )
+                msg = f"Archive exceeds max file count ({limits.max_file_count:,} files)"
                 raise ExtractionLimitExceededError(msg)
 
             # Pre-check declared sizes (fast reject), but enforce actual
@@ -820,16 +797,11 @@ def _extract_zip_to_disk(
 
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info) as src:
-                data = _read_with_limit(
-                    src, info.file_size, limits.max_single_file_bytes
-                )
+                data = _read_with_limit(src, info.file_size, limits.max_single_file_bytes)
 
             total_bytes += len(data)
             if total_bytes > limits.max_total_bytes:
-                msg = (
-                    f"Archive exceeds max total uncompressed size "
-                    f"({limits.max_total_bytes:,} bytes)"
-                )
+                msg = f"Archive exceeds max total uncompressed size ({limits.max_total_bytes:,} bytes)"
                 raise ExtractionLimitExceededError(msg)
 
             target.write_bytes(data)
@@ -862,10 +834,7 @@ def _read_with_limit(
     # than declared (malicious archive lying about size).
     data = f.read(max_bytes + 1)
     if len(data) > max_bytes:
-        msg = (
-            f"File actual size exceeds limit ({max_bytes:,} bytes) — "
-            f"archive may be lying about member sizes"
-        )
+        msg = f"File actual size exceeds limit ({max_bytes:,} bytes) — archive may be lying about member sizes"
         raise ExtractionLimitExceededError(msg)
 
     return data

@@ -72,9 +72,7 @@ class TestRenderInfo:
         assert "Registry: pypi.org" in out
         assert "</package-info>" in out
         # version attribute is on <version-details>, not <package-info>
-        pkg_tag = out[
-            out.index("<package-info") : out.index(">", out.index("<package-info")) + 1
-        ]
+        pkg_tag = out[out.index("<package-info") : out.index(">", out.index("<package-info")) + 1]
         assert "version=" not in pkg_tag
         assert "<version-details" in out
         assert 'version="2.31.0"' in out
@@ -193,9 +191,7 @@ class TestRenderInfo:
         r, s = _renderer()
         report = InfoReport(
             info=_pkg_info(),
-            metadata=_metadata(
-                dependencies=[_dep("urllib3", ">=1.21"), _dep("certifi")]
-            ),
+            metadata=_metadata(dependencies=[_dep("urllib3", ">=1.21"), _dep("certifi")]),
         )
         r.render_info(report)
         out = s.getvalue()
@@ -272,17 +268,10 @@ class TestRenderInfo:
         r.render_info(report)
         out = s.getvalue()
         # version attribute on version-details
-        vd_tag = out[
-            out.index("<version-details") : out.index(
-                ">", out.index("<version-details")
-            )
-            + 1
-        ]
+        vd_tag = out[out.index("<version-details") : out.index(">", out.index("<version-details")) + 1]
         assert 'version="2.28.0"' in vd_tag
         # Not on package-info
-        pkg_tag = out[
-            out.index("<package-info") : out.index(">", out.index("<package-info")) + 1
-        ]
+        pkg_tag = out[out.index("<package-info") : out.index(">", out.index("<package-info")) + 1]
         assert "version=" not in pkg_tag
 
     def test_yanked_attributes_on_version_details(self) -> None:
@@ -297,12 +286,7 @@ class TestRenderInfo:
         r.render_info(report)
         out = s.getvalue()
         # Attributes on <version-details>
-        vd_tag = out[
-            out.index("<version-details") : out.index(
-                ">", out.index("<version-details")
-            )
-            + 1
-        ]
+        vd_tag = out[out.index("<version-details") : out.index(">", out.index("<version-details")) + 1]
         assert 'yanked="true"' in vd_tag
         assert 'yanked-reason="Security issue"' in vd_tag
         # WARNING text inside the block

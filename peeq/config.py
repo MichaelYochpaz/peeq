@@ -38,10 +38,7 @@ def _default_cache_dir() -> Path:
 
 def _default_config_path() -> Path:
     """Platform-standard config file path via `platformdirs`."""
-    return (
-        Path(platformdirs.user_config_dir(appname=APP_NAME, appauthor=False))
-        / "config.toml"
-    )
+    return Path(platformdirs.user_config_dir(appname=APP_NAME, appauthor=False)) / "config.toml"
 
 
 # ---------------------------------------------------------------------------
@@ -132,9 +129,7 @@ class Settings(BaseSettings):
 
         config_path = _default_config_path()
         if config_path.exists():
-            sources.append(
-                TomlConfigSettingsSource(settings_cls, toml_file=config_path)
-            )
+            sources.append(TomlConfigSettingsSource(settings_cls, toml_file=config_path))
 
         return tuple(sources)
 

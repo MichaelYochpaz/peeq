@@ -227,9 +227,7 @@ class TestDistributionQueries:
         dep_names = {d.name for d in result.metadata.dependencies}
         assert dep_names == {"pandas", "scipy"}
 
-    def test_archive_only_upsert_preserves_existing_metadata(
-        self, db, sample_package_id
-    ):
+    def test_archive_only_upsert_preserves_existing_metadata(self, db, sample_package_id):
         metadata = PackageMetadata(
             dependencies=[
                 Dependency.from_requirement_string("urllib3>=1.21.1,<3"),
@@ -430,9 +428,7 @@ class TestFindDependents:
             )
 
         dependents = find_dependents(db, "jinja2")
-        assert dependents == [
-            {"name": "flask", "version": "3.0.0", "specifier": ">=3.0"}
-        ]
+        assert dependents == [{"name": "flask", "version": "3.0.0", "specifier": ">=3.0"}]
 
 
 # ---------------------------------------------------------------------------
@@ -538,9 +534,7 @@ class TestLruMaintenance:
 
     def test_evict_removes_orphaned_packages(self, db):
         """Packages with no distributions left are cleaned up."""
-        pkg_id = upsert_package(
-            db, registry="pypi.org", name="orphan-pkg", fetched_at=1000
-        )
+        pkg_id = upsert_package(db, registry="pypi.org", name="orphan-pkg", fetched_at=1000)
         upsert_distribution(
             db,
             package_id=pkg_id,

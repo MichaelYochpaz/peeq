@@ -393,12 +393,7 @@ def _build_chain(
         for reqs in by_dep.values():
             for req in reqs:
                 req_canon = canonicalize_name(
-                    req.dependency.split("[")[0]
-                    .split(">")[0]
-                    .split("<")[0]
-                    .split("=")[0]
-                    .split("!")[0]
-                    .split("~")[0]
+                    req.dependency.split("[")[0].split(">")[0].split("<")[0].split("=")[0].split("!")[0].split("~")[0]
                 )
                 if req_canon != current:
                     continue
@@ -437,12 +432,7 @@ def _assemble(
     # Collect root package names for chain building.
     root_packages = frozenset(
         canonicalize_name(
-            r.dependency.split("[")[0]
-            .split(">")[0]
-            .split("<")[0]
-            .split("=")[0]
-            .split("!")[0]
-            .split("~")[0]
+            r.dependency.split("[")[0].split(">")[0].split("<")[0].split("=")[0].split("!")[0].split("~")[0]
         )
         for r in root_reqs
     )

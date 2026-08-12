@@ -115,11 +115,7 @@ def _find_metadata_in_wheel(wheel_path: Path) -> str | None:
             continue
         # Match: {anything}.dist-info/METADATA (exactly one directory deep)
         parts = member.path.split("/")
-        if (
-            len(parts) == _ONE_LEVEL_DEEP
-            and parts[0].endswith(".dist-info")
-            and parts[1] == "METADATA"
-        ):
+        if len(parts) == _ONE_LEVEL_DEEP and parts[0].endswith(".dist-info") and parts[1] == "METADATA":
             return member.path
 
     return None

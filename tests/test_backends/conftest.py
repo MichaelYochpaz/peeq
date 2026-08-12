@@ -30,9 +30,7 @@ def _cached_ssl_ctx() -> ssl.SSLContext:
 
 
 @pytest.fixture(autouse=True)
-def _reuse_ssl_ctx(
-    monkeypatch: pytest.MonkeyPatch, _cached_ssl_ctx: ssl.SSLContext
-) -> None:
+def _reuse_ssl_ctx(monkeypatch: pytest.MonkeyPatch, _cached_ssl_ctx: ssl.SSLContext) -> None:
     """Reuse a cached SSL context to skip per-test CA certificate loading."""
     original_init = httpx.AsyncClient.__init__
 

@@ -459,17 +459,13 @@ class TestBuildLsEntriesGlob:
 
     def test_glob_filters_by_extension(self) -> None:
         """Glob '*.py' returns only Python files."""
-        entries = build_ls_entries(
-            self._MEMBERS, recursive=True, glob_patterns=["*.py"]
-        )
+        entries = build_ls_entries(self._MEMBERS, recursive=True, glob_patterns=["*.py"])
         assert len(entries) == 6
         assert all(e.path.endswith(".py") for e in entries)
 
     def test_glob_filters_by_prefix_pattern(self) -> None:
         """Glob 'test_*' matches test files at any depth."""
-        entries = build_ls_entries(
-            self._MEMBERS, recursive=True, glob_patterns=["test_*"]
-        )
+        entries = build_ls_entries(self._MEMBERS, recursive=True, glob_patterns=["test_*"])
         paths = [e.path for e in entries]
         assert "tests/test_api.py" in paths
         assert "tests/test_utils.py" in paths
@@ -494,23 +490,17 @@ class TestBuildLsEntriesGlob:
 
     def test_glob_or_semantics(self) -> None:
         """Multiple globs use OR semantics."""
-        entries = build_ls_entries(
-            self._MEMBERS, recursive=True, glob_patterns=["*.py", "*.md"]
-        )
+        entries = build_ls_entries(self._MEMBERS, recursive=True, glob_patterns=["*.py", "*.md"])
         assert len(entries) == 7
 
     def test_glob_no_matches(self) -> None:
         """Glob matching nothing returns empty list."""
-        entries = build_ls_entries(
-            self._MEMBERS, recursive=True, glob_patterns=["*.rs"]
-        )
+        entries = build_ls_entries(self._MEMBERS, recursive=True, glob_patterns=["*.rs"])
         assert entries == []
 
     def test_glob_with_path_pattern(self) -> None:
         """Slash pattern matches full (prefix-relative) path."""
-        entries = build_ls_entries(
-            self._MEMBERS, recursive=True, glob_patterns=["tests/*.py"]
-        )
+        entries = build_ls_entries(self._MEMBERS, recursive=True, glob_patterns=["tests/*.py"])
         paths = [e.path for e in entries]
         assert "tests/test_api.py" in paths
         assert "tests/test_utils.py" in paths

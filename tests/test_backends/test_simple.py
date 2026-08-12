@@ -123,11 +123,7 @@ class TestSimpleHTMLParser:
     def test_non_anchor_tags_ignored(self):
         parser = _SimpleHTMLParser()
         parser.feed(
-            "<html><body>"
-            "<h1>Links</h1>"
-            "<p>Some text</p>"
-            "<a href='pkg-1.0.tar.gz'>pkg-1.0.tar.gz</a>"
-            "</body></html>",
+            "<html><body><h1>Links</h1><p>Some text</p><a href='pkg-1.0.tar.gz'>pkg-1.0.tar.gz</a></body></html>",
         )
         assert len(parser.files) == 1
 
@@ -138,9 +134,7 @@ class TestSimpleHTMLParser:
         `core-metadata` internally)."""
         parser = _SimpleHTMLParser()
         parser.feed(
-            '<a href="pkg-1.0.whl" '
-            'data-dist-info-metadata="sha256=abc123">'
-            "pkg-1.0.whl</a>",
+            '<a href="pkg-1.0.whl" data-dist-info-metadata="sha256=abc123">pkg-1.0.whl</a>',
         )
         assert parser.files[0]["core-metadata"] == "sha256=abc123"
 
@@ -539,9 +533,7 @@ class TestFilterFilesForVersion:
 
     def test_size_parsed_from_data_size(self):
         """`data-size` attribute is parsed into FileInfo.size."""
-        html = (
-            '<a href="pkg-1.0.tar.gz#sha256=abc" data-size="54321">pkg-1.0.tar.gz</a>'
-        )
+        html = '<a href="pkg-1.0.tar.gz#sha256=abc" data-size="54321">pkg-1.0.tar.gz</a>'
         parser = _SimpleHTMLParser()
         parser.feed(html)
         files = _filter_files_for_version(
@@ -554,10 +546,7 @@ class TestFilterFilesForVersion:
 
     def test_size_invalid_ignored(self):
         """Non-integer `data-size` is silently ignored."""
-        html = (
-            '<a href="pkg-1.0.tar.gz#sha256=abc" data-size="notanumber">'
-            "pkg-1.0.tar.gz</a>"
-        )
+        html = '<a href="pkg-1.0.tar.gz#sha256=abc" data-size="notanumber">pkg-1.0.tar.gz</a>'
         parser = _SimpleHTMLParser()
         parser.feed(html)
         files = _filter_files_for_version(
@@ -568,10 +557,7 @@ class TestFilterFilesForVersion:
         assert files[0].size is None
 
     def test_absolute_urls_preserved(self):
-        html = (
-            '<a href="https://cdn.example.com/pkg-1.0.tar.gz#sha256=abc">'
-            "pkg-1.0.tar.gz</a>"
-        )
+        html = '<a href="https://cdn.example.com/pkg-1.0.tar.gz#sha256=abc">pkg-1.0.tar.gz</a>'
         parser = _SimpleHTMLParser()
         parser.feed(html)
         page_url = "https://simple.example.com/pkg/"

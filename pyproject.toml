@@ -78,7 +78,7 @@ packages = ["peeq"]
 # https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
 target-version = "py310"
-line-length = 88
+line-length = 120
 
 [tool.ruff.lint]
 select = [
@@ -120,11 +120,15 @@ select = [
     "G202",  # flake8-logging-format: redundant exc_info
 ]
 ignore = [
-    "E501",  # line-too-long (formatter handles it)
+    "E501",  # 120 is a formatting target, not a hard limit; see CONTRIBUTING.md
 ]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 12
+
+[tool.ruff.lint.pycodestyle]
+# Keep SIM108 from proposing dense ternaries merely because formatting allows wider lines.
+max-line-length = 100
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [

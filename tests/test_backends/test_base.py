@@ -598,9 +598,7 @@ class TestSSRFBlocking:
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(return_value=fake_addr_info)
             with pytest.raises(BackendError, match="SSRF"):
-                await _validate_url_not_internal(
-                    "http://evil-registry.com/latest/meta-data/"
-                )
+                await _validate_url_not_internal("http://evil-registry.com/latest/meta-data/")
 
     async def test_blocks_ipv6_mapped_loopback(self):
         """Block request when DNS resolves to ::ffff:127.0.0.1 (IPv6-mapped)."""
@@ -611,9 +609,7 @@ class TestSSRFBlocking:
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(return_value=fake_addr_info)
             with pytest.raises(BackendError, match="SSRF"):
-                await _validate_url_not_internal(
-                    "http://evil-registry.com/packages/evil.tar.gz"
-                )
+                await _validate_url_not_internal("http://evil-registry.com/packages/evil.tar.gz")
 
 
 # ---------------------------------------------------------------------------

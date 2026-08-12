@@ -16,18 +16,14 @@ class TestCheckVulnerabilities:
 
     async def test_delegates_to_osv_client(self) -> None:
         """Verify the service delegates to OSVClient.query."""
-        mock_report = VulnerabilityReport(
-            package="requests", version="2.25.0", vulnerabilities=[]
-        )
+        mock_report = VulnerabilityReport(package="requests", version="2.25.0", vulnerabilities=[])
 
         with patch(
             "peeq.integrations.osv.OSVClient",
         ) as mock_client_cls:
             mock_client_instance = AsyncMock()
             mock_client_instance.query.return_value = mock_report
-            mock_client_instance.__aenter__ = AsyncMock(
-                return_value=mock_client_instance
-            )
+            mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
             mock_client_instance.__aexit__ = AsyncMock(return_value=None)
             mock_client_cls.return_value = mock_client_instance
 
@@ -46,9 +42,7 @@ class TestCheckVulnerabilities:
         ) as mock_client_cls:
             mock_client_instance = AsyncMock()
             mock_client_instance.query.side_effect = OSVError("API down")
-            mock_client_instance.__aenter__ = AsyncMock(
-                return_value=mock_client_instance
-            )
+            mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
             mock_client_instance.__aexit__ = AsyncMock(return_value=None)
             mock_client_cls.return_value = mock_client_instance
 

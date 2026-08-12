@@ -45,17 +45,14 @@ def _validate_pattern(pattern: str) -> None:
     if not pattern:
         raise InvalidGlobError("empty glob pattern")
     if len(pattern) > _MAX_PATTERN_LENGTH:
-        raise InvalidGlobError(
-            f"glob pattern exceeds maximum length ({_MAX_PATTERN_LENGTH} chars)"
-        )
+        raise InvalidGlobError(f"glob pattern exceeds maximum length ({_MAX_PATTERN_LENGTH} chars)")
     if pattern.startswith("/"):
         raise InvalidGlobError("glob pattern must be relative (no leading '/')")
     if "//" in pattern:
         raise InvalidGlobError("glob pattern contains empty path segment (//)")
     if pattern.endswith("/"):
         raise InvalidGlobError(
-            "glob pattern with trailing '/' is not supported"
-            " (--glob filters files, not directories)"
+            "glob pattern with trailing '/' is not supported (--glob filters files, not directories)"
         )
 
     # Reject unmatched '[' — wcmatch treats it as a literal per POSIX,

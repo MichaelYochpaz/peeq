@@ -78,9 +78,7 @@ def _make_zip(tmp_path: Path, files: dict[str, bytes]) -> Path:
 
 
 @pytest.fixture(params=["tar", "zip"])
-def archive_factory(
-    request: pytest.FixtureRequest, tmp_path: Path
-) -> Callable[[dict[str, bytes]], Path]:
+def archive_factory(request: pytest.FixtureRequest, tmp_path: Path) -> Callable[[dict[str, bytes]], Path]:
     """Provide an archive creator for both tar.gz and zip formats.
 
     Each parametrized variant returns a callable that takes a
@@ -167,9 +165,7 @@ class TestArchiveDetection:
 class TestListArchive:
     """Tests for list_archive that apply to both tar.gz and zip formats."""
 
-    def test_list_files(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_list_files(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Listing returns sorted member paths."""
         files = {"a.txt": b"aaa", "b.txt": b"bbb", "c.txt": b"ccc"}
         archive = archive_factory(files)
@@ -178,9 +174,7 @@ class TestListArchive:
         names = [m.path for m in members]
         assert names == sorted(names)
 
-    def test_member_metadata(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_member_metadata(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Member carries correct path, size, and is_dir flag."""
         data = b"x" * 42
         archive = archive_factory({"test.py": data})
@@ -190,9 +184,7 @@ class TestListArchive:
         assert members[0].size == 42
         assert members[0].is_dir is False
 
-    def test_file_count_limit(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_file_count_limit(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Exceeding the file-count limit raises ExtractionLimitExceededError."""
         files = {f"file{i}.txt": b"data" for i in range(5)}
         archive = archive_factory(files)
@@ -257,26 +249,20 @@ class TestListArchiveTar:
 class TestExtractFile:
     """Tests for extract_file that apply to both tar.gz and zip formats."""
 
-    def test_extract_existing(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_extract_existing(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Extracting an existing file returns its content."""
         content = b"Hello, world!"
         archive = archive_factory({"greeting.txt": content})
         result = extract_file(archive, "greeting.txt")
         assert result == content
 
-    def test_file_not_found(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_file_not_found(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Requesting a missing file raises ExtractionFileNotFoundError."""
         archive = archive_factory({"a.txt": b"data"})
         with pytest.raises(ExtractionFileNotFoundError, match=r"missing\.txt"):
             extract_file(archive, "missing.txt")
 
-    def test_single_file_size_limit(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_single_file_size_limit(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Exceeding the single-file size limit raises ExtractionLimitExceededError."""
         data = b"x" * 1024
         archive = archive_factory({"big.txt": data})
@@ -327,18 +313,14 @@ class TestExtractFileTar:
 class TestExtractAll:
     """Tests for extract_all that apply to both tar.gz and zip formats."""
 
-    def test_extract_all(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_extract_all(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Extracting all files returns the complete file mapping."""
         files = {"a.txt": b"aaa", "b.txt": b"bbb"}
         archive = archive_factory(files)
         result = extract_all(archive)
         assert result == files
 
-    def test_file_count_limit(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_file_count_limit(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Exceeding the file-count limit raises ExtractionLimitExceededError."""
         files = {f"f{i}.txt": b"x" for i in range(10)}
         archive = archive_factory(files)
@@ -346,9 +328,7 @@ class TestExtractAll:
         with pytest.raises(ExtractionLimitExceededError, match="file count"):
             extract_all(archive, limits=limits)
 
-    def test_total_size_limit(
-        self, archive_factory: Callable[[dict[str, bytes]], Path]
-    ) -> None:
+    def test_total_size_limit(self, archive_factory: Callable[[dict[str, bytes]], Path]) -> None:
         """Exceeding the total-size limit raises ExtractionLimitExceededError."""
         files = {f"f{i}.txt": b"x" * 100 for i in range(5)}
         archive = archive_factory(files)
@@ -393,9 +373,7 @@ class TestExtractAllTar:
 class TestExtractToDisk:
     """Tests for extract_archive_to_disk that apply to both formats."""
 
-    def test_extract_to_disk(
-        self, archive_factory: Callable[[dict[str, bytes]], Path], tmp_path: Path
-    ) -> None:
+    def test_extract_to_disk(self, archive_factory: Callable[[dict[str, bytes]], Path], tmp_path: Path) -> None:
         """Files are extracted to disk with correct content and structure."""
         files = {"hello.txt": b"world", "sub/nested.py": b"import os"}
         archive = archive_factory(files)
@@ -405,9 +383,7 @@ class TestExtractToDisk:
         assert (dest / "hello.txt").read_bytes() == b"world"
         assert (dest / "sub" / "nested.py").read_bytes() == b"import os"
 
-    def test_file_count_limit(
-        self, archive_factory: Callable[[dict[str, bytes]], Path], tmp_path: Path
-    ) -> None:
+    def test_file_count_limit(self, archive_factory: Callable[[dict[str, bytes]], Path], tmp_path: Path) -> None:
         """Exceeding the file-count limit raises ExtractionLimitExceededError."""
         files = {f"f{i}.txt": b"x" for i in range(10)}
         archive = archive_factory(files)
@@ -679,9 +655,7 @@ class TestLyingArchiveDefense:
         with pytest.raises(ExtractionLimitExceededError, match="exceeds limit"):
             _read_with_limit(io.BytesIO(b""), 1000, 500)
 
-    def test_lying_tar_detected_via_extract_file(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_lying_tar_detected_via_extract_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Detect lying tar stream through the extract_file public API.
 
         Python's `tarfile.ExFileObject` caps reads at the declared

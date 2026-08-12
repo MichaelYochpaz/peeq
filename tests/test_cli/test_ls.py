@@ -59,10 +59,7 @@ async def _mock_resolve(*args: object, **kwargs: object) -> str:
 
 def _root_files(count: int) -> list[ArchiveMember]:
     """Create *count* simple root-level file members."""
-    return [
-        ArchiveMember(path=f"file_{i:02d}.py", size=100, is_dir=False)
-        for i in range(count)
-    ]
+    return [ArchiveMember(path=f"file_{i:02d}.py", size=100, is_dir=False) for i in range(count)]
 
 
 # ---------------------------------------------------------------------------
@@ -83,9 +80,7 @@ class TestFlagConflicts:
         ):
             await ls_cmd("testpkg", all_entries=True, limit=100)
 
-        renderer.render_error.assert_called_once_with(
-            "--all and --limit cannot be used together"
-        )
+        renderer.render_error.assert_called_once_with("--all and --limit cannot be used together")
 
     async def test_negative_limit_rejected(self) -> None:
         """Negative `--limit` renders an error and exits."""

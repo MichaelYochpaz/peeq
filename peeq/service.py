@@ -183,9 +183,7 @@ def _collect_fetch_targets(
             if not chain_version or chain_name == target_name:
                 continue
             extras_str = f"[{','.join(sorted(parsed.extras))}]" if parsed.extras else ""
-            to_fetch[(chain_name, chain_version)] = (
-                f"{canonicalize_name(parsed.name)}{extras_str}"
-            )
+            to_fetch[(chain_name, chain_version)] = f"{canonicalize_name(parsed.name)}{extras_str}"
 
     return to_fetch
 
@@ -314,13 +312,9 @@ class PackageService:
         if info.project_urls is not None:
             legacy_metadata_dict["project_urls"] = info.project_urls
         if info.latest_release_date is not None:
-            legacy_metadata_dict["latest_release_date"] = int(
-                info.latest_release_date.timestamp()
-            )
+            legacy_metadata_dict["latest_release_date"] = int(info.latest_release_date.timestamp())
 
-        legacy_metadata_json = (
-            json.dumps(legacy_metadata_dict) if legacy_metadata_dict else None
-        )
+        legacy_metadata_json = json.dumps(legacy_metadata_dict) if legacy_metadata_dict else None
 
         # Cache the result (versions list capped by cache layer)
         version_infos = await self._backend.versions(name)
@@ -467,9 +461,7 @@ class PackageService:
                     (f.requires_python for f in version_files if f.requires_python),
                     None,
                 )
-                base_info = base_info.model_copy(
-                    update={"requires_python": version_requires_python}
-                )
+                base_info = base_info.model_copy(update={"requires_python": version_requires_python})
             except Exception as exc:
                 logger.debug(
                     "Failed to fetch requires_python for %s==%s: %s",
@@ -845,15 +837,11 @@ class PackageService:
         )
 
         # Extract canonical root names (cast to str for type compatibility)
-        roots: set[str] = {
-            str(canonicalize_name(Requirement(r).name)) for r in requirements
-        }
+        roots: set[str] = {str(canonicalize_name(Requirement(r).name)) for r in requirements}
         canonical_target = str(canonicalize_name(target))
 
         # Build version lookup from resolved packages
-        version_lookup: dict[str, str] = {
-            dep.name: str(dep.version) for dep in result.resolved
-        }
+        version_lookup: dict[str, str] = {dep.name: str(dep.version) for dep in result.resolved}
 
         # Check if target is in the resolved packages
         if canonical_target not in version_lookup:
@@ -881,12 +869,8 @@ class PackageService:
         truncated = len(raw_paths) >= max_paths
 
         # Fetch edge specifiers and build WhyPath objects
-        specifier_cache = await self._fetch_edge_specifiers(
-            raw_paths, version_lookup, all_hops=all_hops
-        )
-        why_paths = _build_why_paths(
-            raw_paths, version_lookup, specifier_cache, all_hops=all_hops
-        )
+        specifier_cache = await self._fetch_edge_specifiers(raw_paths, version_lookup, all_hops=all_hops)
+        why_paths = _build_why_paths(raw_paths, version_lookup, specifier_cache, all_hops=all_hops)
 
         return WhyResult(
             target=canonical_target,
@@ -1093,11 +1077,7 @@ class PackageService:
         or if the fetch fails.
         """
         # Select wheel with PEP 658 metadata
-        candidates = [
-            f
-            for f in files
-            if f.dist_type == DistType.WHEEL and f.metadata_available and not f.yanked
-        ]
+        candidates = [f for f in files if f.dist_type == DistType.WHEEL and f.metadata_available and not f.yanked]
         if not candidates:
             logger.debug(
                 "No wheel with PEP 658 metadata for %s==%s",
@@ -1358,8 +1338,7 @@ class PackageService:
                         computed = hashlib.sha256(response.content).hexdigest()
                         if computed != wheel.metadata_hash.sha256:
                             logger.warning(
-                                "PEP 658 metadata hash mismatch for %s "
-                                "(tag %s): expected %s, got %s",
+                                "PEP 658 metadata hash mismatch for %s (tag %s): expected %s, got %s",
                                 wheel.filename,
                                 tag,
                                 wheel.metadata_hash.sha256,

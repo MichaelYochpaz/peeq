@@ -138,9 +138,7 @@ def build_vulnerability_recommendation(
 
     version = max(fixed_versions, key=_version_sort_key)
     unresolved_count = sum(1 for vuln in vulnerabilities if not vuln.fixed_versions)
-    return VulnerabilityRecommendation(
-        version=version, unresolved_count=unresolved_count
-    )
+    return VulnerabilityRecommendation(version=version, unresolved_count=unresolved_count)
 
 
 def format_unfixed_vulnerability_note(unresolved_count: int) -> str:

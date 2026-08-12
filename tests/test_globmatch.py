@@ -201,9 +201,7 @@ class TestGlobMatchRegexMetachars:
             ("func().py", "func().py", True),
         ],
     )
-    def test_regex_metachar_literal(
-        self, path: str, pattern: str, expected: bool
-    ) -> None:
+    def test_regex_metachar_literal(self, path: str, pattern: str, expected: bool) -> None:
         assert glob_match(path, pattern) is expected
 
 

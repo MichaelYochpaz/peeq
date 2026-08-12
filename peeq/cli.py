@@ -162,8 +162,7 @@ async def _render_version_hint(
     info = await service.check(package)
     if info is not None:
         renderer.render_error(
-            f"Latest version: {info.latest_version}. "
-            f"Run '{APP_NAME} versions {package}' to see all available versions."
+            f"Latest version: {info.latest_version}. Run '{APP_NAME} versions {package}' to see all available versions."
         )
 
 
@@ -594,10 +593,7 @@ async def deps(  # noqa: C901, PLR0912, PLR0915
         str | None,
         Parameter(
             name="--tag",
-            help=(
-                "Wheel tag for platform-specific metadata "
-                "(e.g., cp312-cp312-win_amd64)."
-            ),
+            help=("Wheel tag for platform-specific metadata (e.g., cp312-cp312-win_amd64)."),
         ),
     ] = None,
     diff: Annotated[
@@ -632,16 +628,12 @@ async def deps(  # noqa: C901, PLR0912, PLR0915
                 raise SystemExit(1)
 
             try:
-                base_meta = await service.get_metadata(
-                    package, resolved_version, tag=tag
-                )
+                base_meta = await service.get_metadata(package, resolved_version, tag=tag)
                 target_meta = await service.get_metadata(package, diff_version, tag=tag)
             except TagNotFoundError as exc:
                 renderer.render_error(str(exc))
                 if exc.available_tags:
-                    renderer.render_error(
-                        f"Available tags: {', '.join(sorted(exc.available_tags))}"
-                    )
+                    renderer.render_error(f"Available tags: {', '.join(sorted(exc.available_tags))}")
                 raise SystemExit(1) from None
             except Exception as exc:
                 renderer.render_error(str(exc))
@@ -649,14 +641,12 @@ async def deps(  # noqa: C901, PLR0912, PLR0915
 
             if base_meta is None or base_meta.dependencies is None:
                 renderer.render_error(
-                    f"Cannot diff: dependencies for {package}=={resolved_version} "
-                    "are not available (marked as dynamic)"
+                    f"Cannot diff: dependencies for {package}=={resolved_version} are not available (marked as dynamic)"
                 )
                 raise SystemExit(1)
             if target_meta is None or target_meta.dependencies is None:
                 renderer.render_error(
-                    f"Cannot diff: dependencies for {package}=={diff_version} "
-                    "are not available (marked as dynamic)"
+                    f"Cannot diff: dependencies for {package}=={diff_version} are not available (marked as dynamic)"
                 )
                 raise SystemExit(1)
 
@@ -680,18 +670,14 @@ async def deps(  # noqa: C901, PLR0912, PLR0915
         except TagNotFoundError as exc:
             renderer.render_error(str(exc))
             if exc.available_tags:
-                renderer.render_error(
-                    f"Available tags: {', '.join(sorted(exc.available_tags))}"
-                )
+                renderer.render_error(f"Available tags: {', '.join(sorted(exc.available_tags))}")
             raise SystemExit(1) from None
         except Exception as exc:
             renderer.render_error(str(exc))
             raise SystemExit(1) from None
 
     if metadata is None:
-        renderer.render_error(
-            f"No metadata available for {package}=={resolved_version}"
-        )
+        renderer.render_error(f"No metadata available for {package}=={resolved_version}")
         raise SystemExit(1)
 
     renderer.render_deps(package, resolved_version, metadata, tag=tag)
@@ -781,10 +767,7 @@ async def ls_cmd(  # noqa: PLR0913
         Parameter(
             name=["--glob", "-g"],
             json_list=False,
-            help=(
-                "Recursively search for files matching a glob pattern."
-                " Repeatable with OR semantics."
-            ),
+            help=("Recursively search for files matching a glob pattern. Repeatable with OR semantics."),
         ),
     ] = None,
 ) -> None:
@@ -840,9 +823,7 @@ async def ls_cmd(  # noqa: PLR0913
         )
         raise SystemExit(1)
 
-    entries = build_ls_entries(
-        members, prefix=prefix, recursive=recursive, glob_patterns=glob_patterns
-    )
+    entries = build_ls_entries(members, prefix=prefix, recursive=recursive, glob_patterns=glob_patterns)
 
     display, total = _slice_window(entries, offset=offset, limit=limit)
     renderer.render_ls(
@@ -995,9 +976,7 @@ async def download(
             raise SystemExit(1)
 
         try:
-            result_path = await service.download_package(
-                package, resolved_version, output_dir, extract=extract
-            )
+            result_path = await service.download_package(package, resolved_version, output_dir, extract=extract)
         except ArtifactNotAvailableError as exc:
             renderer.render_error(str(exc))
             await _render_version_hint(service, renderer, package)
@@ -1067,9 +1046,7 @@ async def resolve(
     requirements: Annotated[
         list[str],
         Parameter(
-            help=(
-                'PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'
-            ),
+            help=('PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'),
         ),
     ],
     *,
@@ -1133,9 +1110,7 @@ async def conflicts(
     requirements: Annotated[
         list[str],
         Parameter(
-            help=(
-                'PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'
-            ),
+            help=('PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'),
         ),
     ],
     *,
@@ -1205,9 +1180,7 @@ async def why(
     requirements: Annotated[
         list[str],
         Parameter(
-            help=(
-                'PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'
-            ),
+            help=('PEP 508 requirement strings (e.g., "requests>=2.31.0", "flask==3.0.0").'),
         ),
     ],
     *,
@@ -1273,9 +1246,7 @@ async def why(
 
     # Target not found in resolution
     if not result.paths and not result.is_direct:
-        renderer.render_error(
-            f"Package {target_package!r} is not a dependency of the given requirements."
-        )
+        renderer.render_error(f"Package {target_package!r} is not a dependency of the given requirements.")
         raise SystemExit(1)
 
     renderer.render_why(result)

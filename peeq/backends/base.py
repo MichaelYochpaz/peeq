@@ -124,10 +124,7 @@ async def _resolve_and_validate_host(hostname: str, *, context: str) -> None:
         try:
             validate_ip_not_internal(ip_str)
         except InternalIPError as exc:
-            msg = (
-                f"SSRF protection: {context} blocked — "
-                f"{hostname} resolves to internal IP {ip_str}: {exc}"
-            )
+            msg = f"SSRF protection: {context} blocked — {hostname} resolves to internal IP {ip_str}: {exc}"
             raise BackendError(msg) from exc
 
 
@@ -180,9 +177,7 @@ class ResponseTooLargeError(BackendError):
     """API response exceeds the maximum allowed size."""
 
 
-def _check_response_size(
-    response: httpx.Response, max_bytes: int = _MAX_API_RESPONSE_BYTES
-) -> None:
+def _check_response_size(response: httpx.Response, max_bytes: int = _MAX_API_RESPONSE_BYTES) -> None:
     """Check response size and reject oversized responses.
 
     Two layers of defense:
@@ -210,10 +205,7 @@ def _check_response_size(
             pass
         else:
             if size > max_bytes:
-                msg = (
-                    f"Response from {response.url} exceeds size limit: "
-                    f"{size:,} bytes > {max_bytes:,} bytes"
-                )
+                msg = f"Response from {response.url} exceeds size limit: {size:,} bytes > {max_bytes:,} bytes"
                 raise ResponseTooLargeError(msg)
 
     # Layer 2: post-materialization body size check.
@@ -222,10 +214,7 @@ def _check_response_size(
     # This catches chunked responses that omitted Content-Length.
     actual_size = len(response.content)
     if actual_size > max_bytes:
-        msg = (
-            f"Response from {response.url} exceeds size limit: "
-            f"{actual_size:,} bytes > {max_bytes:,} bytes"
-        )
+        msg = f"Response from {response.url} exceeds size limit: {actual_size:,} bytes > {max_bytes:,} bytes"
         raise ResponseTooLargeError(msg)
 
 
@@ -318,11 +307,7 @@ class PackageRepository(ABC):
         trusted_origin = self._trusted_origin
 
         async def _validate_redirect(response: httpx.Response) -> None:
-            if not (
-                httpx.codes.MULTIPLE_CHOICES
-                <= response.status_code
-                < httpx.codes.BAD_REQUEST
-            ):
+            if not (httpx.codes.MULTIPLE_CHOICES <= response.status_code < httpx.codes.BAD_REQUEST):
                 return
 
             location = response.headers.get("location")
@@ -337,9 +322,7 @@ class PackageRepository(ABC):
             if _parse_origin(location) == trusted_origin:
                 return
 
-            await _resolve_and_validate_host(
-                hostname, context=f"redirect to {location!r}"
-            )
+            await _resolve_and_validate_host(hostname, context=f"redirect to {location!r}")
 
         return httpx.AsyncClient(
             headers={"User-Agent": f"{APP_NAME}/{__version__}"},
@@ -365,10 +348,7 @@ class PackageRepository(ABC):
         response: httpx.Response | None = None
         for attempt in range(_MAX_RETRIES):
             response = await self.client.get(url, headers=headers or {})
-            if (
-                response.status_code == _HTTP_TOO_MANY_REQUESTS
-                or response.status_code >= _HTTP_SERVER_ERROR_MIN
-            ):
+            if response.status_code == _HTTP_TOO_MANY_REQUESTS or response.status_code >= _HTTP_SERVER_ERROR_MIN:
                 if attempt == _MAX_RETRIES - 1:
                     # Last attempt — let the caller handle the error
                     return response
@@ -403,10 +383,7 @@ class PackageRepository(ABC):
     def client(self) -> httpx.AsyncClient:
         """Active httpx client.  Raises if not in async context manager."""
         if self._client is None:
-            msg = (
-                f"{type(self).__name__} must be used as an async context "
-                f"manager (async with ...)"
-            )
+            msg = f"{type(self).__name__} must be used as an async context manager (async with ...)"
             raise RuntimeError(msg)
         return self._client
 
@@ -529,10 +506,7 @@ class PackageRepository(ABC):
 
         if expected_hash is not None and computed != expected_hash.sha256:
             dest.unlink(missing_ok=True)
-            msg = (
-                f"SHA-256 mismatch for {dest.name}: "
-                f"expected {expected_hash.sha256}, got {computed}"
-            )
+            msg = f"SHA-256 mismatch for {dest.name}: expected {expected_hash.sha256}, got {computed}"
             raise BackendError(msg)
 
         hash_digest = HashDigest(

@@ -152,8 +152,7 @@ def _validate_remote_sync() -> None:
     if result.returncode != 0:
         _error(
             "could not verify local main against origin/main",
-            hint=result.stderr.strip()
-            or "ensure origin/main exists and fetch succeeds",
+            hint=result.stderr.strip() or "ensure origin/main exists and fetch succeeds",
         )
 
     ahead = _run_git(
@@ -458,8 +457,7 @@ def _commit_and_tag(version: Version, *, no_verify: bool) -> None:
             file=sys.stderr,
         )
         print(
-            f"  To abort entirely: git reset HEAD~1 && "
-            f"git checkout HEAD -- {PYPROJECT} {CHANGELOG} {LOCKFILE}",
+            f"  To abort entirely: git reset HEAD~1 && git checkout HEAD -- {PYPROJECT} {CHANGELOG} {LOCKFILE}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -475,8 +473,7 @@ def _push(version: Version) -> None:
     result = _run_git("push", "--atomic", "origin", "main", tag, check=False)
     if result.returncode != 0:
         print(
-            "\nerror: push failed. The commit and tag exist locally "
-            "but were not pushed.",
+            "\nerror: push failed. The commit and tag exist locally but were not pushed.",
             file=sys.stderr,
         )
         print(
@@ -522,10 +519,7 @@ def _resolve_note(args: argparse.Namespace) -> str | None:
 def _parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description=(
-            "Prepare a peeq release: bump version, update changelog, "
-            "commit, tag, and push."
-        ),
+        description=("Prepare a peeq release: bump version, update changelog, commit, tag, and push."),
     )
     parser.add_argument(
         "version",

@@ -183,10 +183,7 @@ class TestAdditionalRequirementsJSON:
         assert "additional_constraints" in conflict
         assert len(conflict["additional_constraints"]) == 1
         assert conflict["additional_constraints"][0]["requires"] == "kubernetes>=30.0.0"
-        assert (
-            conflict["additional_constraints"][0]["required_by"]
-            == "pkg-c[remote]==0.5.1"
-        )
+        assert conflict["additional_constraints"][0]["required_by"] == "pkg-c[remote]==0.5.1"
 
     def test_no_additional_constraints_key(self) -> None:
         """No additional_constraints key when empty."""
